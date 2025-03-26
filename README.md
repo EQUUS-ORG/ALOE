@@ -10,13 +10,20 @@ ALOE is a simple pipeline that generates and optimizes conformers, using a neura
 <p>
 The backend is adapted from Auto3D (https://github.com/isayevlab/Auto3D_pkg). The default model is AIMNet2 (https://chemrxiv.org/engage/chemrxiv/article-details/6763b51281d2151a022fb6a5).
 
-ALOE's front-end grants full control over individual operations. Please see below for an example.
+ALOE's front-end grants full control over individual operations. Please see below for an example that includes all the steps shown in the previous flow chart.
 
 ```python3
-from aloe import
+import ALOE
 
-engine = 
-engine.add_step()
+engine = ALOE.ALOE(input_file = "test.csv")
+engine.add_step(ALOE.StereoIsoConfig()) # Generate stereoisomers
+engine.add_step(ALOE.ConformerConfig()) # Ember conformers
+engine.add_step(ALOE.OptConfig()) # Optimize conformers
+engine.add_step(ALOE.RankConfig(k=3)) # Rank optimized conformers, pick the best 3
+engine.add_step(ALOE.ThermoConfig()) # Thermochemistry calculations via ASE
+output_file = engine.run() # Asynchronous execution
+
+print(output_file)
 ```
 
 ## Installation
