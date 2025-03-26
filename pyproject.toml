@@ -5,18 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ALOE"
 version = "0.0.1"
-description = "ALOE"
+description = "Asynchronous Lightweight Optimization Engine"
 readme = "README.md"
 authors = [
     { name = "Ethan Tran", email = "ethantran0815@gmail.com" },
-    { name = "Yiwen Wang", email = "yiwenwang9702@gmail.com" }
+    { name = "Yiwen Wang", email = "yiwenwang9702@gmail.com" },
+    { name = "Ron Sarma", email = "rsarma@andrew.cmu.edu" }
 ]
 license = {file = "LICENSE"}
 
 dependencies = [
     "torchani",
+    "ase",
     "numpy>=1.26.0",
     "pandas>=2.2.3",
-    "rdkit>=2024.3.1",
-
+    "rdkit>=2024.3.1"
 ]

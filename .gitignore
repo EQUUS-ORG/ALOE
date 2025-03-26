@@ -1,11 +1,11 @@
-# Byte-compiled / optimized / DLL files
+# Cache
 __pycache__/
-
-# Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
-# macOS system files
+# Miscellaneous
 .DS_Store
+*.csv
+*.sdf
 
 # Distribution / packaging
 *.egg
