@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ALOE"
+version = "0.0.1"
+description = "ALOE"
+readme = "README.md"
+authors = [
+    { name = "Ethan Tran", email = "ethantran0815@gmail.com" },
+    { name = "Yiwen Wang", email = "yiwenwang9702@gmail.com" }
+]
+license = {file = "LICENSE"}
+
+dependencies = [
+    "torchani",
+    "numpy>=1.26.0",
+    "pandas>=2.2.3",
+    "rdkit>=2024.3.1",
+
+]

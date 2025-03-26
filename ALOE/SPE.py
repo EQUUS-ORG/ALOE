@@ -1,0 +1,105 @@
+import os
+import sys
+
+root = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(root)
+
+import warnings
+
+import ase.calculators.calculator
+import torch
+from ase import Atoms
+
+try:
+    import torchani
+
+    from ALOE.batch_opt.ANI2xt_no_rep import ANI2xt
+except:
+    pass
+from rdkit import Chem
+
+from ALOE.batch_opt.batchopt import (
+    EnForce_ANI,
+    mols2lists,
+    padding_coords,
+    padding_species,
+)
+from ALOE.model_validation import hartree2ev
+
+torch.backends.cuda.matmul.allow_tf32 = False
+torch.backends.cudnn.allow_tf32 = False
+ev2hatree = 1 / hartree2ev
+
+
+def calc_spe(path: str, model_name: str, gpu_idx=0):
+    """
+    Calculates single point energy.
+
+    :param path: Input sdf file
+    :type path: str
+    :param model_name: AIMNET, ANI2x, userNNP, or ANI2xt
+    :type model_name: str
+    :param gpu_idx: GPU cuda index, defaults to 0
+    :type gpu_idx: int, optional
+    """
+    # Create a output path that is the in the same directory as the input
+    dir = os.path.dirname(path)
+    if os.path.exists(model_name):
+        basename = os.path.basename(path).split(".")[0] + f"_userNNP_E.sdf"
+    else:
+        basename = os.path.basename(path).split(".")[0] + f"_{model_name}_E.sdf"
+    outpath = os.path.join(dir, basename)
+
+    if torch.cuda.is_available():
+        device = torch.device(f"cuda:{gpu_idx}")
+    else:
+        device = torch.device("cpu")
+
+    if model_name == "ANI2xt":
+        model = EnForce_ANI(ANI2xt(device), model_name)
+    elif model_name == "AIMNET":
+        aimnet = torch.jit.load(
+            os.path.join(root, "models/aimnet2_wb97m_ens_f.jpt"), map_location=device
+        )
+        model = EnForce_ANI(aimnet, model_name)
+    elif model_name == "ANI2x":
+        calculator = torchani.models.ANI2x(periodic_table_index=True).to(device)
+        model = EnForce_ANI(calculator, model_name)
+    # elif model_name == "userNNP":
+    #     from userNNP import userNNP
+    elif os.path.exists(model_name):
+        calculator = torch.jit.load(model_name, map_location=device)
+        model = EnForce_ANI(calculator, model_name)
+    else:
+        raise ValueError(
+            "model has to be 'ANI2x', 'ANI2xt', 'AIMNET' or a path to a userNNP model."
+        )
+
+    mols = list(Chem.SDMolSupplier(path, removeHs=False))
+    coord, numbers, charges = mols2lists(mols, model_name)
+    if model_name == "AIMNET":
+        coord_padded = padding_coords(coord, 0)
+        numbers_padded = padding_species(numbers, 0)
+    elif model_name in {"ANI2xt", "ANI2x"}:
+        coord_padded = padding_coords(coord, 0)
+        numbers_padded = padding_species(numbers, -1)
+    elif os.path.exists(model_name):
+        coord_padded = padding_coords(coord, model.ani.coord_pad)
+        numbers_padded = padding_species(numbers, model.ani.species_pad)
+    else:
+        raise ValueError(
+            "model has to be 'ANI2x', 'ANI2xt', 'AIMNET' or a path to a userNNP model."
+        )
+
+    # if model_name != "ANI2x":
+    coord_padded = torch.tensor(coord_padded, device=device, requires_grad=True)
+    numbers_padded = torch.tensor(numbers_padded, device=device)
+    charges = torch.tensor(charges, device=device)
+    es, fs = model.forward_batched(coord_padded, numbers_padded, charges)
+    es = es.to("cpu").detach().numpy()
+
+    with Chem.SDWriter(outpath) as f:
+        for i, mol in enumerate(mols):
+            mol.SetProp("E_hartree", str(es[i] * ev2hatree))
+            f.write(mol)
+    return outpath
