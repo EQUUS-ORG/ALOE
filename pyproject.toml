@@ -4,8 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aloe"
-version = "0.0.1"
-readme = "README.md"
+version = "0.0.3"
 requires-python = ">=3.10"
 description = "Asynchronous Lightweight Optimization Engine"
 authors = [
@@ -18,13 +17,18 @@ license = {file = "LICENSE"}
 dependencies = [
     "torchani",
     "ase",
+    "tqdm",
+    "psutil",
     "numpy>=1.26.0",
     "pandas>=2.2.3",
     "rdkit>=2024.3.1"
 ]
 
 [tool.setuptools]
-include-package-data = false  # make sure this is set
+include-package-data = true  # make sure this is set
+
+[tool.setuptools.package-data]
+"aloe" = ["models/*"]
 
 [tool.setuptools.packages.find]
 where = ["."]

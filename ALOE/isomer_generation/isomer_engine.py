@@ -38,7 +38,6 @@ class rd_enumerate_isomer(object):
         self.enumerated_csv = enumerated_csv
         self.enumerate_tauts = enumerate_tauts
         self.onlyUnassigned = onlyUnassigned
-        print(f"onlyUnassigned: {self.onlyUnassigned}")
         self.unique = unique
 
     def taut(self):
