@@ -317,7 +317,6 @@ def _save_chunks(input_file, t, num_jobs, chunk_size):
                     and current_write_index < data_size
                 ):
                     sorted_index = ordered_indexes[current_write_index]
-                    print(sorted_index)
                     f.write(f"{names[sorted_index]},{smiles[sorted_index]}\n")
                     current_write_index += 1
                     curr_job_inputs += 1

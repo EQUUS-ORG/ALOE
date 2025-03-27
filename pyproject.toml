@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "ALOE"
 version = "0.0.1"
 description = "Asynchronous Lightweight Optimization Engine"
-readme = "README.md"
 authors = [
     { name = "Ethan Tran", email = "ethantran0815@gmail.com" },
     { name = "Yiwen Wang", email = "yiwenwang9702@gmail.com" },
@@ -21,3 +20,8 @@ dependencies = [
     "pandas>=2.2.3",
     "rdkit>=2024.3.1"
 ]
+
+[tool.setuptools]
+packages = "find:"
+package-dir = {"" = "."}
+exclude = ["pics"]

@@ -129,10 +129,6 @@ class ALOE:
             str, path to the output file.
 
         """
-        print(self.user_parameters["OptConfig"])
-        print(asdict(OptConfig()))
-        print(self.user_parameters["OptConfig"]["opt_use_gpu"])
-
         check_shared_parameters(
             self.user_parameters["OptConfig"], self.user_parameters["ThermoConfig"]
         )

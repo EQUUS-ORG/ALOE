@@ -47,7 +47,9 @@ def generate_stereoisomers(
         unique=unique,
     )
 
-    return engine.run()
+    output_file = engine.run()
+    print("Finished generating stereoisomers", flush=True)
+    return output_file
 
 
 def embed_conformers(
@@ -92,6 +94,8 @@ def embed_conformers(
                     mol.SetProp("ID", conf_id)
                     mol.SetProp("_Name", name)
                     writer.write(mol, confId=i)
+
+    print("Finished embedding conformers", flush=True)
 
     return output_file
 
@@ -170,6 +174,7 @@ def optimize_conformers(
     optimizer.run()
 
     end = time.time()
+    print("Finished optimizing conformers", flush=True)
     _print_timing(start, end)
 
     return output_file
@@ -213,7 +218,9 @@ def rank_conformers(
         encoded=True,
     )
 
-    return rank_engine.run()
+    output_file = rank_engine.run()
+    print("Finished ranking conformers", flush=True)
+    return output_file
 
 
 def calculate_thermo(
@@ -253,7 +260,7 @@ def calculate_thermo(
 
     # Output path
     output_file = make_output_name(input_file, "thermo", io_file_type)
-    return thermo.calc_thermo(
+    output_file = thermo.calc_thermo(
         input_file=input_file,
         output_file=output_file,
         model_name=model_name,
@@ -263,3 +270,4 @@ def calculate_thermo(
         opt_tol=opt_tol,
         opt_steps=opt_steps,
     )
+    return output_file
