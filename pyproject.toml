@@ -5,6 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ALOE"
 version = "0.0.1"
+readme = "README.md"
+requires-python = ">=3.10"
 description = "Asynchronous Lightweight Optimization Engine"
 authors = [
     { name = "Ethan Tran", email = "ethantran0815@gmail.com" },
@@ -22,6 +24,8 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = "find:"
-package-dir = {"" = "."}
-exclude = ["pics"]
+include-package-data = false  # make sure this is set
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["pics*", "examples*"]
