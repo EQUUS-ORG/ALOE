@@ -1,5 +1,7 @@
 torchani
 ase
+tqdm
+psutil
 numpy>=1.26.0
 pandas>=2.2.3
 rdkit>=2024.3.1
