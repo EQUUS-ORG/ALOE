@@ -13,18 +13,18 @@ from ase import Atoms
 try:
     import torchani
 
-    from ALOE.batch_opt.ANI2xt_no_rep import ANI2xt
+    from aloe.batch_opt.ANI2xt_no_rep import ANI2xt
 except:
     pass
 from rdkit import Chem
 
-from ALOE.batch_opt.batchopt import (
+from aloe.batch_opt.batchopt import (
     EnForce_ANI,
     mols2lists,
     padding_coords,
     padding_species,
 )
-from ALOE.model_validation import hartree2ev
+from aloe.model_validation import hartree2ev
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False

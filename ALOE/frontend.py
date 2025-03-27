@@ -4,15 +4,15 @@ import os
 from dataclasses import asdict, dataclass
 from typing import List, Union
 
-from ALOE.backend import (
+from aloe.backend import (
     calculate_thermo,
     embed_conformers,
     generate_stereoisomers,
     optimize_conformers,
     rank_conformers,
 )
-from ALOE.file_utils import _divide_jobs_based_on_memory, _save_chunks, combine_files
-from ALOE.model_validation import check_shared_parameters
+from aloe.file_utils import _divide_jobs_based_on_memory, _save_chunks, combine_files
+from aloe.model_validation import check_shared_parameters
 
 
 @dataclass
@@ -99,7 +99,7 @@ class ThermoConfig:
     memory: int = None
 
 
-class ALOE:
+class aloe:
     def __init__(self, input_file, output_dir=None):
         r"""
         Arguments:

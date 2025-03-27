@@ -18,9 +18,9 @@ from rdkit import Chem
 from rdkit.Chem import rdmolops
 from tqdm.auto import tqdm
 
-from ALOE.batch_opt.ANI2xt_no_rep import ANI2xt
-from ALOE.batch_opt.batchopt import EnForce_ANI
-from ALOE.model_validation import hartree2ev
+from aloe.batch_opt.ANI2xt_no_rep import ANI2xt
+from aloe.batch_opt.batchopt import EnForce_ANI
+from aloe.model_validation import hartree2ev
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False

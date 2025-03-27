@@ -6,8 +6,8 @@ sys.path.append(root)
 import torch
 from rdkit import Chem
 
-from ALOE.batch_opt.batchopt import optimizing
-from ALOE.model_validation import hartree2ev
+from aloe.batch_opt.batchopt import optimizing
+from aloe.model_validation import hartree2ev
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False

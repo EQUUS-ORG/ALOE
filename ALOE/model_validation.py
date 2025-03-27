@@ -5,7 +5,7 @@ import warnings
 import torch
 from rdkit import Chem
 
-from ALOE.file_utils import smiles_from_file
+from aloe.file_utils import smiles_from_file
 
 # CODATA 2018 energy conversion factor
 hartree2ev = 27.211386245988

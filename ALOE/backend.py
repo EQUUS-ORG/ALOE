@@ -5,13 +5,13 @@ from typing import Callable, Optional
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from ALOE.ASE import thermo
-from ALOE.batch_opt.batchopt import optimizing
-from ALOE.embed import embedding
-from ALOE.file_utils import _print_timing, check_input, make_output_name, read_csv
-from ALOE.isomer_generation.isomer_engine import rd_enumerate_isomer
-from ALOE.model_validation import check_device, check_model
-from ALOE.rank.ranking import ranking
+from aloe.ASE import thermo
+from aloe.batch_opt.batchopt import optimizing
+from aloe.embed import embedding
+from aloe.file_utils import _print_timing, check_input, make_output_name, read_csv
+from aloe.isomer_generation.isomer_engine import rd_enumerate_isomer
+from aloe.model_validation import check_device, check_model
+from aloe.rank.ranking import ranking
 
 max_conformers_per_GB_memory = 8192
 

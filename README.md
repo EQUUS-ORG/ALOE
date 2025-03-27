@@ -13,14 +13,14 @@ The backend is adapted from Auto3D (https://github.com/isayevlab/Auto3D_pkg). Th
 ALOE's front-end grants full control over individual operations. Please see below for an example that includes all the steps shown in the previous flow chart.
 
 ```python3
-import ALOE
+import aloe
 
-engine = ALOE.ALOE(input_file = "test.csv")
-engine.add_step(ALOE.StereoIsoConfig()) # Generate stereoisomers
-engine.add_step(ALOE.ConformerConfig()) # Ember conformers
-engine.add_step(ALOE.OptConfig()) # Optimize conformers
-engine.add_step(ALOE.RankConfig(k=3)) # Rank optimized conformers, pick the best 3
-engine.add_step(ALOE.ThermoConfig()) # Thermochemistry calculations via ASE
+engine = aloe.aloe(input_file = "test.csv")
+engine.add_step(aloe.StereoIsoConfig()) # Generate stereoisomers
+engine.add_step(aloe.ConformerConfig()) # Ember conformers
+engine.add_step(aloe.OptConfig()) # Optimize conformers
+engine.add_step(aloe.RankConfig(k=3)) # Rank optimized conformers, pick the best 3
+engine.add_step(aloe.ThermoConfig()) # Thermochemistry calculations via ASE
 output_file = engine.run() # Asynchronous execution
 
 print(output_file)

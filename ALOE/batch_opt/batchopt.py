@@ -21,7 +21,7 @@ except:
 
 from tqdm.auto import tqdm
 
-from ALOE.model_validation import hartree2ev
+from aloe.model_validation import hartree2ev
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False

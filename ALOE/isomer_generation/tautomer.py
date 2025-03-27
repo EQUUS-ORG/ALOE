@@ -4,8 +4,8 @@ from typing import Optional
 import pandas as pd
 from rdkit import Chem
 
-from ALOE.backend import main
-from ALOE.model_validation import hartree2kcalpermol
+from aloe.backend import main
+from aloe.model_validation import hartree2kcalpermol
 
 
 def select_tautomers(
