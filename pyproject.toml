@@ -3,8 +3,8 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aloe"
-version = "0.0.3"
+name = "aloe-engine"
+version = "0.1.0"
 requires-python = ">=3.10"
 description = "Asynchronous Lightweight Optimization Engine"
 authors = [
@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [tool.setuptools]
-include-package-data = true  # make sure this is set
+include-package-data = true
 
 [tool.setuptools.package-data]
 "aloe" = ["models/*"]

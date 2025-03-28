@@ -48,7 +48,7 @@ pip install -e .
 
 Or simply
 ```bash
-pip install aloe
+pip install aloe-engine
 ```
 
 ## Why aynchronous execution?
