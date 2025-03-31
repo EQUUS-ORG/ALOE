@@ -57,7 +57,7 @@ class OptConfig:
     opt_use_gpu: bool = False
     opt_gpu_idx: Union[int, List[int]] = 0
     batchsize_atoms: int = 2048
-    optimizing_engine: str = "AIMNET"
+    optimizing_engine: str = "AIMNET-lite"
     patience: int = 1000
     opt_steps: int = 5000
     convergence_threshold: float = 0.003
@@ -92,7 +92,7 @@ class ThermoConfig:
     """
     thermo_use_gpu: bool = False
     thermo_gpu_idx: Union[int, List[int]] = 0
-    model_name: str = "AIMNET"
+    model_name: str = "AIMNET-lite"
     mol_info_func: callable = None
     opt_tol: float = 0.0002
     opt_steps: int = 5000

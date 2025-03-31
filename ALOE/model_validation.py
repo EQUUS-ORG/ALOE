@@ -86,7 +86,7 @@ def check_model(model, input_file):
     # Checks validity of the input file in context of the model
     if model in {"ANI2x", "ANI2xt"}:
         validate_ANI2x(input_file)
-    if model == "AIMNET":
+    if model == "AIMNET-lite":
         validate_aimnet(input_file)
 
 
@@ -112,7 +112,7 @@ def validate_ANI2x(input_file):
 
 def validate_aimnet(input_file):
     r"""
-    Checks if molecules in the input file are compatible with AIMNET.
+    Checks if molecules in the input file are compatible with AIMNET-lite.
     """
     # Ensures that molecules are compatible with AIMNET
     # AIMNET elemets = H, B, C, N, O, F, Si, P, S, Cl, As, Se, Br, I

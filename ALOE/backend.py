@@ -106,7 +106,7 @@ def optimize_conformers(
     opt_use_gpu: Optional[bool] = True,
     gpu_idx: Optional[int] = 0,
     batchsize_atoms: Optional[int] = 2048,
-    optimizing_engine: Optional[str] = "AIMNET",
+    optimizing_engine: Optional[str] = "AIMNET-lite",
     patience: Optional[int] = 1000,
     opt_steps: Optional[int] = 5000,
     convergence_threshold: Optional[float] = 0.003,
@@ -225,7 +225,7 @@ def rank_conformers(
 
 def calculate_thermo(
     input_file: str,
-    model_name: str = "AIMNET",
+    model_name: str = "AIMNET-lite",
     mol_info_func: Optional[Callable] = None,
     thermo_use_gpu: Optional[bool] = True,
     gpu_idx: int = 0,
