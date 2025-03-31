@@ -255,6 +255,7 @@ def _divide_jobs_based_on_memory(hardware_settings):
 
     smiles_per_G = capacity
     num_jobs = 1
+    t = 0
     if memory is not None:
         t = int(memory)
     else:
