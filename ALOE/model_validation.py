@@ -66,7 +66,7 @@ def check_model(model, input_file):
     r"""
     Check if the model is valid and compatible with the input file.
     Args:
-        model: The model to be used (ANI2x, ANI2xt, AIMNET, or a path to a userNNP model).
+        model: The model to be used (ANI2x, ANI2xt, AIMNET-lite, or a path to a userNNP model).
         input_file: The input file containing the molecules.
     """
     # Check the installation for open toolkits, torchani
@@ -106,7 +106,7 @@ def validate_ANI2x(input_file):
 
     if len(invalid_ani_smiles) != 0:
         sys.exit(
-            f"The following smiles strings are incompatible with AIMNET: {invalid_ani_smiles}"
+            f"The following smiles strings are incompatible with ANI: {invalid_ani_smiles}"
         )
 
 
@@ -132,5 +132,5 @@ def validate_aimnet(input_file):
 
     if len(invalid_aimnet_smiles) != 0:
         sys.exit(
-            f"The following smiles strings are incompatible with AIMNET: {invalid_aimnet_smiles}"
+            f"The following smiles strings are incompatible with AIMNET-lite: {invalid_aimnet_smiles}"
         )

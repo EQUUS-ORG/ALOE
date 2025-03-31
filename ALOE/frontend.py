@@ -47,7 +47,7 @@ class OptConfig:
     opt_use_gpu: bool, whether to use GPU for optimization, defaults to False.
     opt_gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for optimization, defaults to 0.
     batchsize_atoms: int, Number of atoms per optimization batch per 1GB, defaults to 2048.
-    optimizing_engine: str, Geometry optimization engine, default "AIMNET"
+    optimizing_engine: str, Geometry optimization engine, default "AIMNET-lite"
     patience: int, maximum consecutive steps without force decrease before termination, defaults to 1000.
     opt_steps: int, maximum optimization steps per structure, defaults to 5000.
     convergence_threshold: float, Maximum force threshold for convergence, defaults to 0.003.
@@ -84,7 +84,7 @@ class ThermoConfig:
     Arguments:
     thermo_use_gpu: bool, whether to use GPU for thermochemistry calculations, defaults to False.
     thermo_gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for thermochemistry calculations, defaults to 0.
-    model_name: str: name of the forcefield to use, defaults to "AIMNET".
+    model_name: str: name of the forcefield to use, defaults to "AIMNET-lite".
     mol_into_func: Callable, function to convert the molecule into a format that can be used by the forcefield, defaults to None.
     opt_tol: float, Convergence_threshold for geometry optimization, defaults to 0.0002.
     opt_steps: int, Maximum optimization steps per structure, defaults to 5000.
