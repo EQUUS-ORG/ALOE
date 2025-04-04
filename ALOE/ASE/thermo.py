@@ -127,6 +127,13 @@ def model_name2model_calculator(model_name: str, device=torch.device("cpu"), cha
         )
         model = EnForce_ANI(aimnet, model_name)
         calculator = Calculator(model, charge)
+    elif model_name == "AIMNET-lite":
+        ## TO BE IMPLEMENTED
+        aimnet = torch.jit.load(
+            os.path.join(root, "models/aimnet2_wb97m-d3_0.jpt"), map_location=device
+        )
+        model = EnForce_ANI(aimnet, model_name)
+        calculator = Calculator(model, charge)
     elif model_name == "ANI2x":
         ani2x = torchani.models.ANI2x(periodic_table_index=True).to(device).double()
         model = EnForce_ANI(ani2x, model_name)
@@ -208,7 +215,7 @@ def do_mol_thermo(
     model: torch.nn.Module,
     device=torch.device("cpu"),
     T=298.0,
-    model_name="AIMNET",
+    model_name="AIMNET-lite",
 ):
     """For a RDKit mol object, calculate its thermochemistry properties.
     model: ANI2xt or AIMNet2 or ANI2x or userNNP that can be used to calculate Hessian"""
@@ -246,12 +253,12 @@ def aimnet_hessian_helper(
     numbers: Optional[torch.Tensor] = None,
     charge: Optional[torch.Tensor] = None,
     model: Optional[torch.nn.Module] = None,
-    model_name="AIMNET",
+    model_name="AIMNET-lite",
 ):
     """coord shape: (1, num_atoms, 3)
     numbers shape: (1, num_atoms)
     charge shape: (1,)"""
-    if model_name == "AIMNET":
+    if model_name == "AIMNET-lite":
         dct = dict(coord=coord, numbers=numbers, charge=charge)
         return model(dct)["energy"]  # energy unit: eV
     elif model_name == "ANI2xt":
@@ -315,7 +322,7 @@ def calc_thermo(
     else:
         device = torch.device("cpu")
 
-    if model_name == "AIMNET":
+    if model_name == "AIMNET-lite":
         aimnet0_path = os.path.join(root, "models/aimnet2_wb97m-d3_0.jpt")
         hessian_model = torch.jit.load(aimnet0_path, map_location=device)
     elif model_name == "ANI2xt":
