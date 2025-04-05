@@ -110,3 +110,80 @@ class rd_enumerate_isomer(object):
                     writer.writerow([f"{key}-isomer{i}", smi])
 
         return self.enumerated_csv
+
+def EZ_helper(mol, bond_idx):
+    """
+    Assigns E/Z stereochemistry to the molecule.
+    """
+
+    # Create a copy to get stereo atoms for double bonds
+    mol_copy = mol.__copy__()
+    for id in bond_idx:
+        bond = mol_copy.GetBondWithIdx(id)
+        if bond.GetBondType() == Chem.rdchem.BondType.DOUBLE:
+            bond.SetStereo(Chem.rdchem.BondStereo.STEREOANY)
+
+    # https://github.com/rdkit/rdkit/blob/master/rdkit/Chem/EnumerateStereoisomers.py
+    sinfo = Chem.FindPotentialStereo(mol_copy)
+    for si in sinfo:
+        if si.type == Chem.StereoType.Bond_Double and si.centeredOn in bond_idx:
+            bond = mol_copy.GetBondWithIdx(si.centeredOn)
+            if not bond.GetStereoAtoms():
+                if (
+                    si.controllingAtoms[0] == Chem.StereoInfo.NOATOM
+                    or si.controllingAtoms[2] == Chem.StereoInfo.NOATOM
+                ):
+                    continue
+                original_bond = mol.GetBondBetweenAtoms(
+                    bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+                )
+                original_bond.SetStereoAtoms(
+                    si.controllingAtoms[0], si.controllingAtoms[2]
+                )
+    return mol
+
+pattern = Chem.MolFromSmiles('N=C1C=CC=CC1=N')
+
+def enumerate_EZ_diimine(smi):
+    """
+    (E, E), (E, Z), (Z,E), (Z, Z)
+    """
+
+    mol = Chem.MolFromSmiles(smi)
+    match = mol.GetSubstructMatches(pattern)[0]
+    N1, C1 = match[0], match[1]
+    N2, C2 = match[-1], match[-2]
+    bond1_id = mol.GetBondBetweenAtoms(N1, C1).GetIdx()
+    bond2_id = mol.GetBondBetweenAtoms(N2, C2).GetIdx()
+
+    list_of_smiles = []
+
+    # (E, E)
+    mol_copy = mol.__copy__()
+    mol_copy.GetBondWithIdx(bond1_id).SetStereo(Chem.rdchem.BondStereo.STEREOE)
+    mol_copy.GetBondWithIdx(bond2_id).SetStereo(Chem.rdchem.BondStereo.STEREOE)
+    mol_copy = EZ_helper(mol_copy, [bond1_id, bond2_id])
+    list_of_smiles.append(Chem.MolToSmiles(mol_copy))
+
+    # (E, Z)
+    mol_copy = mol.__copy__()
+    mol_copy.GetBondWithIdx(bond1_id).SetStereo(Chem.rdchem.BondStereo.STEREOE)
+    mol_copy.GetBondWithIdx(bond2_id).SetStereo(Chem.rdchem.BondStereo.STEREOZ)
+    mol_copy = EZ_helper(mol_copy, [bond1_id, bond2_id])
+    list_of_smiles.append(Chem.MolToSmiles(mol_copy))
+    
+    # (Z, E)
+    mol_copy = mol.__copy__()
+    mol_copy.GetBondWithIdx(bond1_id).SetStereo(Chem.rdchem.BondStereo.STEREOZ)
+    mol_copy.GetBondWithIdx(bond2_id).SetStereo(Chem.rdchem.BondStereo.STEREOE)
+    mol_copy = EZ_helper(mol_copy, [bond1_id, bond2_id])
+    list_of_smiles.append(Chem.MolToSmiles(mol_copy))
+
+    # (Z, Z)
+    mol_copy = mol.__copy__()
+    mol_copy.GetBondWithIdx(bond1_id).SetStereo(Chem.rdchem.BondStereo.STEREOZ)
+    mol_copy.GetBondWithIdx(bond2_id).SetStereo(Chem.rdchem.BondStereo.STEREOZ)
+    mol_copy = EZ_helper(mol_copy, [bond1_id, bond2_id])
+    list_of_smiles.append(Chem.MolToSmiles(mol_copy))
+
+    return list_of_smiles
