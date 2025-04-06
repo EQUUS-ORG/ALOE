@@ -11,7 +11,11 @@ from aloe.backend import (
     optimize_conformers,
     rank_conformers,
 )
-from aloe.bdfe_calculation.bdfe_calc import products_pipeline
+from aloe.bdfe_calculation.bdfe_calc import (
+    bdfe_calculator,
+    products_pipeline,
+    write_failed_reactants,
+)
 from aloe.bdfe_calculation.product_generator import generate_products
 from aloe.file_utils import (
     _divide_jobs_based_on_memory,
@@ -208,7 +212,8 @@ class aloe:
         Generates the products from a list of reactants and calulates the change in bond dissociation free energy (BDFE) for each reaction.
 
         Returns:
-            str: path to the output file containing the BDFE calculations.
+            output_file str: path to the output file containing the BDFE calculations.
+            failed_file str: path to the file containing the failed reactants (if any).
         """
 
         reactant_chunks, hardware_settings = self.prepwork()
@@ -227,7 +232,7 @@ class aloe:
         self.add_step(RankConfig(k=1))
         self.add_step(ThermoConfig())
 
-        reactants_files = asyncio.run(
+        reactant_files = asyncio.run(
             run_auto3D_pipeline(
                 reactant_chunks,
                 self.selected_functions,
@@ -246,6 +251,20 @@ class aloe:
         )
 
         # Calculates BDFEs
+        output_files = []
+        for reactant, product in zip(reactant_files, product_files):
+            output_files.append(bdfe_calculator(reactant, product))
+
+        if self.output_dir is None:
+            self.output_dir = os.path.dirname(self.input_file)
+
+        output_file = combine_files(
+            output_files, self.input_file, self.output_dir, "_bdfe.csv"
+        )
+
+        failed_file = write_failed_reactants(output_file, failed_reactants)
+
+        return output_file, failed_file
 
 
 async def run_gen(input_file, **kwargs):
