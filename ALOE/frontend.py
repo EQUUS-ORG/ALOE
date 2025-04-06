@@ -11,7 +11,14 @@ from aloe.backend import (
     optimize_conformers,
     rank_conformers,
 )
-from aloe.file_utils import _divide_jobs_based_on_memory, _save_chunks, combine_files
+from aloe.bdfe_calculation.bdfe_calc import products_pipeline
+from aloe.bdfe_calculation.product_generator import generate_products
+from aloe.file_utils import (
+    _divide_jobs_based_on_memory,
+    _save_chunks,
+    combine_files,
+    make_output_name,
+)
 from aloe.model_validation import check_shared_parameters
 
 
@@ -122,13 +129,15 @@ class aloe:
         self.selected_functions.append(func)
         self.user_parameters[func] = asdict(config)
 
-    def run(self):
+    def prepwork(self):
         r"""
-        This function runs the aloe pipeline. Choose which functions to run and optionally set parameters for each function.
+        Prepares the aloe pipeline for execution. This function can be used to ensure that all necessary parameters are set before running the pipeline.
         Returns:
-            str, path to the output file.
-
+            None
         """
+        if not self.selected_functions:
+            raise ValueError("No steps have been added to the pipeline.")
+
         check_shared_parameters(
             self.user_parameters["OptConfig"], self.user_parameters["ThermoConfig"]
         )
@@ -160,6 +169,19 @@ class aloe:
 
         hardware_settings = hardware_settings["gpu_idx"]
 
+        # Ensure all required parameters are set before running the pipeline
+        return chunks, hardware_settings
+
+    def run(self):
+        r"""
+        This function runs the aloe pipeline. Choose which functions to run and optionally set parameters for each function.
+        Returns:
+            str, path to the output file.
+
+        """
+
+        chunks, hardware_settings = self.prepwork()
+
         output_files = asyncio.run(
             run_auto3D_pipeline(
                 chunks, self.selected_functions, self.user_parameters, hardware_settings
@@ -180,6 +202,50 @@ class aloe:
         return combine_files(
             output_files, self.input_file, self.output_dir, output_suffix
         )
+
+    def calculate_bdfe(self):
+        r"""
+        Generates the products from a list of reactants and calulates the change in bond dissociation free energy (BDFE) for each reaction.
+
+        Returns:
+            str: path to the output file containing the BDFE calculations.
+        """
+
+        reactant_chunks, hardware_settings = self.prepwork()
+        product_chunks = []
+        failed_reactants = []
+
+        for chunk in reactant_chunks:
+            product_chunk, failed = products_pipeline(chunk)
+            product_chunks.append(product_chunk)
+            failed_reactants.extend(failed)
+
+        # run pipeline on both files
+
+        self.add_step(ConformerConfig())
+        self.add_step(OptConfig())
+        self.add_step(RankConfig(k=1))
+        self.add_step(ThermoConfig())
+
+        reactants_files = asyncio.run(
+            run_auto3D_pipeline(
+                reactant_chunks,
+                self.selected_functions,
+                self.user_parameters,
+                hardware_settings,
+            )
+        )
+
+        product_files = asyncio.run(
+            run_auto3D_pipeline(
+                product_chunks,
+                self.selected_functions,
+                self.user_parameters,
+                hardware_settings,
+            )
+        )
+
+        # Calculates BDFEs
 
 
 async def run_gen(input_file, **kwargs):
