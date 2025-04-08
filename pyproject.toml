@@ -12,7 +12,7 @@ authors = [
     { name = "Yiwen Wang", email = "yiwenwang9702@gmail.com" },
     { name = "Ron Sarma", email = "rsarma@andrew.cmu.edu" }
 ]
-license = {file = "LICENSE"}
+license = "MIT"
 
 dependencies = [
     "torchani",
