@@ -176,7 +176,7 @@ class aloe:
         # Ensure all required parameters are set before running the pipeline
         return chunks, hardware_settings
 
-    def run(self):
+    async def run(self):
         r"""
         This function runs the aloe pipeline. Choose which functions to run and optionally set parameters for each function.
         Returns:
