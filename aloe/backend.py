@@ -254,7 +254,7 @@ def calculate_thermo(
     io_file_type = ".sdf"
 
     check_input(input_file, io_file_type)
-    check_device(thermo_use_gpu, gpu_idx)
+    check_device(use_gpu, gpu_idx)
     check_model(model_name, input_file)
     print("Thermo Calculations...", flush=True)
 
