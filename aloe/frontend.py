@@ -186,7 +186,7 @@ class aloe:
 
         chunks, hardware_settings = self.prepwork()
 
-        output_files = asyncio.run(
+        output_files = await asyncio.run(
             run_auto3D_pipeline(
                 chunks, self.selected_functions, self.user_parameters, hardware_settings
             )
