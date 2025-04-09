@@ -20,7 +20,7 @@ def check_shared_parameters(opt_config, thermo_config):
         opt_config: The optimization configuration.
         thermo_config: The thermochemistry configuration.
     """
-    if opt_config["opt_use_gpu"] != thermo_config["thermo_use_gpu"]:
+    if opt_config["use_gpu"] != thermo_config["use_gpu"]:
         warnings.warn(
             "The GPU settings for optimization and thermochemistry do not match."
         )
@@ -33,9 +33,9 @@ def check_shared_parameters(opt_config, thermo_config):
             "The GPU settings for optimization and thermochemistry do not match. Please set them to the same value."
         )
 
-    if opt_config["opt_gpu_idx"] != thermo_config["thermo_gpu_idx"]:
-        sys.exit(
-            "The GPU indices for optimization and thermochemistry do not match. Please set them to the same value."
+    if opt_config["gpu_idx"] != thermo_config["gpu_idx"]:
+        warnings.warn(
+            "The GPU settings for optimization and thermochemistry do not match."
         )
 
 
