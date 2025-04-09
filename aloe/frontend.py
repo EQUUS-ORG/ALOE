@@ -55,8 +55,8 @@ class OptConfig:
     r"""
     Arguemnts:
     capacity: int, number of molecules to process per 1GB memory, defaults to 8192.
-    opt_use_gpu: bool, whether to use GPU for optimization, defaults to False.
-    opt_gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for optimization, defaults to 0.
+    use_gpu: bool, whether to use GPU for optimization, defaults to False.
+    gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for optimization, defaults to 0.
     batchsize_atoms: int, Number of atoms per optimization batch per 1GB, defaults to 2048.
     optimizing_engine: str, Geometry optimization engine, default "AIMNET-lite"
     patience: int, maximum consecutive steps without force decrease before termination, defaults to 1000.
@@ -65,8 +65,8 @@ class OptConfig:
     memory: int, RAM allocation for Auto3D in GB, defaults to None.
     """
     capacity: int = 8192
-    opt_use_gpu: bool = False
-    opt_gpu_idx: Union[int, List[int]] = 0
+    use_gpu: bool = False
+    gpu_idx: Union[int, List[int]] = 0
     batchsize_atoms: int = 2048
     optimizing_engine: str = "AIMNET-lite"
     patience: int = 1000
@@ -93,16 +93,16 @@ class RankConfig:
 class ThermoConfig:
     r"""
     Arguments:
-    thermo_use_gpu: bool, whether to use GPU for thermochemistry calculations, defaults to False.
-    thermo_gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for thermochemistry calculations, defaults to 0.
+    use_gpu: bool, whether to use GPU for thermochemistry calculations, defaults to False.
+    gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for thermochemistry calculations, defaults to 0.
     model_name: str: name of the forcefield to use, defaults to "AIMNET-lite".
     mol_into_func: Callable, function to convert the molecule into a format that can be used by the forcefield, defaults to None.
     opt_tol: float, Convergence_threshold for geometry optimization, defaults to 0.0002.
     opt_steps: int, Maximum optimization steps per structure, defaults to 5000.
     memory: int, RAM allocation for Auto3D in GB, defaults to None.
     """
-    thermo_use_gpu: bool = False
-    thermo_gpu_idx: Union[int, List[int]] = 0
+    use_gpu: bool = False
+    gpu_idx: Union[int, List[int]] = 0
     model_name: str = "AIMNET-lite"
     mol_info_func: callable = None
     opt_tol: float = 0.0002
@@ -149,8 +149,8 @@ class aloe:
             "capacity": self.user_parameters["OptConfig"]["capacity"],
             "memory": self.user_parameters["OptConfig"]["memory"],
             "batchsize_atoms": self.user_parameters["OptConfig"]["batchsize_atoms"],
-            "use_gpu": self.user_parameters["OptConfig"]["opt_use_gpu"],
-            "gpu_idx": self.user_parameters["OptConfig"]["opt_gpu_idx"],
+            "use_gpu": self.user_parameters["OptConfig"]["use_gpu"],
+            "gpu_idx": self.user_parameters["OptConfig"]["gpu_idx"],
         }
 
         t, batchsize_atoms, num_jobs, chunk_size = _divide_jobs_based_on_memory(
@@ -164,8 +164,8 @@ class aloe:
         # Consolidate into one list
         if isinstance(hardware_settings["gpu_idx"], int):
             hardware_settings["gpu_idx"] = [hardware_settings["gpu_idx"]]
-            del self.user_parameters["OptConfig"]["opt_gpu_idx"]
-            del self.user_parameters["ThermoConfig"]["thermo_gpu_idx"]
+            del self.user_parameters["OptConfig"]["gpu_idx"]
+            del self.user_parameters["ThermoConfig"]["gpu_idx"]
 
         # Not needed for the backend, just for hardware settings
         del self.user_parameters["OptConfig"]["memory"]

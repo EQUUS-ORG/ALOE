@@ -103,7 +103,7 @@ def embed_conformers(
 def optimize_conformers(
     input_file: str,
     capacity: Optional[int] = max_conformers_per_GB_memory,
-    opt_use_gpu: Optional[bool] = True,
+    use_gpu: Optional[bool] = False,
     gpu_idx: Optional[int] = 0,
     batchsize_atoms: Optional[int] = 2048,
     optimizing_engine: Optional[str] = "AIMNET-lite",
@@ -136,7 +136,7 @@ def optimize_conformers(
     io_file_type = ".sdf"
     # Checks input file, device, and model
     check_input(input_file, io_file_type)
-    device = check_device(opt_use_gpu, gpu_idx)
+    device = check_device(use_gpu, gpu_idx)
     check_model(optimizing_engine, input_file)
     print("Optimizing Conformers...", flush=True)
 
@@ -227,7 +227,7 @@ def calculate_thermo(
     input_file: str,
     model_name: str = "AIMNET-lite",
     mol_info_func: Optional[Callable] = None,
-    thermo_use_gpu: Optional[bool] = True,
+    use_gpu: Optional[bool] = True,
     gpu_idx: int = 0,
     opt_tol: float = 0.0002,
     opt_steps: int = 5000,
@@ -265,7 +265,7 @@ def calculate_thermo(
         output_file=output_file,
         model_name=model_name,
         mol_info_func=mol_info_func,
-        use_gpu=thermo_use_gpu,
+        use_gpu=use_gpu,
         gpu_idx=gpu_idx,
         opt_tol=opt_tol,
         opt_steps=opt_steps,
