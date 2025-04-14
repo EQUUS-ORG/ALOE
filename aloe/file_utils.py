@@ -225,6 +225,8 @@ def SDF2chunks(sdf: str) -> List[List[str]]:
 def batch_calculations(input_file):
     """Given a file path and file type, returns the indexes of the molecules in the file, ordered by size and groupped by name."""
 
+    print("Beginning batch calculations...", flush=True)
+
     file_type = input_file.split(".")[-1].strip()
 
     if file_type == "sdf":
@@ -273,6 +275,8 @@ def batch_calculations(input_file):
 
 
 def batch_files(input_file, int_dir, basename, input_format, batch_info):
+
+    print("Batching files...", flush=True)
 
     batched_files = []
     updated_batch_info = {}
@@ -342,6 +346,9 @@ def save_chunks(input_file, t, do_batch, batch_info):
     r"""
     Given an input file, divide the file into chunks based on the available memory and the number of jobs.
     """
+
+    print("Dividing input file into chunks...", flush=True)
+
     # Creates an intermediate file.
     basename = os.path.basename(input_file).split(".")[0].strip()
     input_format = input_file.split(".")[-1].strip()
@@ -400,14 +407,18 @@ def save_chunks(input_file, t, do_batch, batch_info):
                         f"Job{current_chunk+1}, number of inputs: {mols_in_current_chunk}",
                         flush=True,
                     )
-
+                    mols_in_current_chunk = 0
                     current_chunk += 1
 
                 with open(chunks_of_same_size[current_chunk], "w") as f:
                     for idx in index_list:
                         f.write(f"{names[idx]},{smiles[idx]}\n")
-                        curr_job_inputs += 1
                         mols_in_current_chunk += 1
+
+            print(
+                f"Job{current_chunk+1}, number of inputs: {mols_in_current_chunk}",
+                flush=True,
+            )
 
     elif input_format == "sdf":
 
@@ -446,15 +457,19 @@ def save_chunks(input_file, t, do_batch, batch_info):
                         f"Job{current_chunk+1}, number of inputs: {mols_in_current_chunk}",
                         flush=True,
                     )
-
+                    mols_in_current_chunk = 0
                     current_chunk += 1
 
                 with open(chunks_of_same_size[current_chunk], "w") as f:
                     for idx in index_list:
                         for line in df[idx]:
                             f.write(line)
-                        curr_job_inputs += 1
                         mols_in_current_chunk += 1
+
+            print(
+                f"Job{current_chunk+1}, number of inputs: {mols_in_current_chunk}",
+                flush=True,
+            )
 
     print(f"The available memory is {t} GB.", flush=True)
     print(f"The task will be divided into {num_chunks} job(s).", flush=True)
