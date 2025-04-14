@@ -18,10 +18,11 @@ from aloe.bdfe_calculation.bdfe_calc import (
 )
 from aloe.bdfe_calculation.product_generator import generate_products
 from aloe.file_utils import (
-    _divide_jobs_based_on_memory,
-    _save_chunks,
+    batch_calculations,
     combine_files,
     make_output_name,
+    save_chunks,
+    update_hardware_settings,
 )
 from aloe.model_validation import check_shared_parameters
 
@@ -54,25 +55,15 @@ class ConformerConfig:
 class OptConfig:
     r"""
     Arguemnts:
-    capacity: int, number of molecules to process per 1GB memory, defaults to 8192.
-    use_gpu: bool, whether to use GPU for optimization, defaults to False.
-    gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for optimization, defaults to 0.
-    batchsize_atoms: int, Number of atoms per optimization batch per 1GB, defaults to 2048.
     optimizing_engine: str, Geometry optimization engine, default "AIMNET-lite"
     patience: int, maximum consecutive steps without force decrease before termination, defaults to 1000.
     opt_steps: int, maximum optimization steps per structure, defaults to 5000.
     convergence_threshold: float, Maximum force threshold for convergence, defaults to 0.003.
-    memory: int, RAM allocation for Auto3D in GB, defaults to None.
     """
-    capacity: int = 8192
-    use_gpu: bool = False
-    gpu_idx: Union[int, List[int]] = 0
-    batchsize_atoms: int = 2048
     optimizing_engine: str = "AIMNET-lite"
     patience: int = 1000
     opt_steps: int = 5000
     convergence_threshold: float = 0.003
-    memory: int = None
 
 
 @dataclass
@@ -93,29 +84,28 @@ class RankConfig:
 class ThermoConfig:
     r"""
     Arguments:
-    use_gpu: bool, whether to use GPU for thermochemistry calculations, defaults to False.
-    gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for thermochemistry calculations, defaults to 0.
     model_name: str: name of the forcefield to use, defaults to "AIMNET-lite".
     mol_into_func: Callable, function to convert the molecule into a format that can be used by the forcefield, defaults to None.
     opt_tol: float, Convergence_threshold for geometry optimization, defaults to 0.0002.
     opt_steps: int, Maximum optimization steps per structure, defaults to 5000.
-    memory: int, RAM allocation for Auto3D in GB, defaults to None.
     """
-    use_gpu: bool = False
-    gpu_idx: Union[int, List[int]] = 0
     model_name: str = "AIMNET-lite"
     mol_info_func: callable = None
     opt_tol: float = 0.0002
     opt_steps: int = 5000
-    memory: int = None
 
 
 class aloe:
-    def __init__(self, input_file, output_dir=None):
+    def __init__(self, input_file, output_dir=None, **kwargs):
         r"""
         Arguments:
         input_file: str, path to the input file (.csv if starting with isomer generation or embedding, .sdf otherwise).
         output_file: str, path to the output file, default None
+        use_gpu: bool, whether to use GPU for calculations, default False.
+        gpu_idx: int or List[int], Only applies when use_gpu=True. GPU index to use for calculations, default 0.
+        do_batch: bool, whether to batch calculations based on molecule sizes, default False.
+        memory: int, RAM allocation for Auto3D in GB, default None.
+        batchsize_atoms: int, Number of atoms per batch for geometry calculations, default 2048.
         """
         self.input_file = input_file
         self.output_dir = output_dir
@@ -126,6 +116,13 @@ class aloe:
             "OptConfig": asdict(OptConfig()),
             "RankConfig": asdict(RankConfig()),
             "ThermoConfig": asdict(ThermoConfig()),
+        }
+        self.hardware_settings = {
+            "use_gpu": kwargs.get("use_gpu", False),
+            "gpu_idx": kwargs.get("gpu_idx", 0),
+            "do_batch": kwargs.get("do_batch", False),
+            "memory": kwargs.get("memory", None),
+            "batchsize_atoms": kwargs.get("batchsize_atoms", 2048),
         }
 
     def add_step(self, config):
@@ -145,25 +142,30 @@ class aloe:
         check_shared_parameters(
             self.user_parameters["OptConfig"], self.user_parameters["ThermoConfig"]
         )
-        hardware_settings = {
-            "capacity": self.user_parameters["OptConfig"]["capacity"],
-            "memory": self.user_parameters["OptConfig"]["memory"],
-            "batchsize_atoms": self.user_parameters["OptConfig"]["batchsize_atoms"],
-            "use_gpu": self.user_parameters["OptConfig"]["use_gpu"],
-            "gpu_idx": self.user_parameters["OptConfig"]["gpu_idx"],
-        }
 
-        t, batchsize_atoms, num_jobs, chunk_size = _divide_jobs_based_on_memory(
-            hardware_settings
+        # batch info contains a dictionary of key (num_atoms): value (dictionary of key (molecule type): value (number of molecules))
+        batch_info = batch_calculations(self.input_file)
+
+        t, self.hardware_settings["batchsize_atoms"] = update_hardware_settings(
+            self.hardware_settings
         )
-        hardware_settings[batchsize_atoms] = batchsize_atoms
 
-        self.user_parameters["OptConfig"]["batchsize_atoms"] = batchsize_atoms
-        chunks = _save_chunks(self.input_file, t, num_jobs, chunk_size)
+        # Assign hardware settings to respective functions
+        self.user_parameters["OptConfig"]["use_gpu"] = self.hardware_settings["use_gpu"]
+        self.user_parameters["ThermoConfig"]["use_gpu"] = self.hardware_settings[
+            "use_gpu"
+        ]
+        self.user_parameters["OptConfig"]["batchsize_atoms"] = self.hardware_settings[
+            "batchsize_atoms"
+        ]
+
+        chunks = save_chunks(
+            self.input_file, t, self.hardware_settings["do_batch"], batch_info
+        )
 
         # Consolidate into one list
-        if isinstance(hardware_settings["gpu_idx"], int):
-            hardware_settings["gpu_idx"] = [hardware_settings["gpu_idx"]]
+        if isinstance(self.hardware_settings["gpu_idx"], int):
+            self.hardware_settings["gpu_idx"] = [self.hardware_settings["gpu_idx"]]
             del self.user_parameters["OptConfig"]["gpu_idx"]
             del self.user_parameters["ThermoConfig"]["gpu_idx"]
 
@@ -171,10 +173,11 @@ class aloe:
         del self.user_parameters["OptConfig"]["memory"]
         del self.user_parameters["ThermoConfig"]["memory"]
 
-        hardware_settings = hardware_settings["gpu_idx"]
+        # This is the only relevant hardware setting for the pipeline
+        self.hardware_settings = self.hardware_settings["gpu_idx"]
 
         # Ensure all required parameters are set before running the pipeline
-        return chunks, hardware_settings
+        return chunks
 
     async def run(self):
         r"""
@@ -184,12 +187,14 @@ class aloe:
 
         """
 
-        chunks, hardware_settings = self.prepwork()
+        chunks = self.prepwork()
 
         output_files = await run_auto3D_pipeline(
-                chunks, self.selected_functions, self.user_parameters, hardware_settings
-            )
-        
+            chunks,
+            self.selected_functions,
+            self.user_parameters,
+            self.hardware_settings,
+        )
 
         if (
             len(self.selected_functions) == 1

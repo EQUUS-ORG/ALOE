@@ -20,23 +20,23 @@ def check_shared_parameters(opt_config, thermo_config):
         opt_config: The optimization configuration.
         thermo_config: The thermochemistry configuration.
     """
-    if opt_config["use_gpu"] != thermo_config["use_gpu"]:
-        warnings.warn(
-            "The GPU settings for optimization and thermochemistry do not match."
-        )
+    # if opt_config["use_gpu"] != thermo_config["use_gpu"]:
+    #     warnings.warn(
+    #         "The GPU settings for optimization and thermochemistry do not match."
+    #     )
 
     if opt_config["optimizing_engine"] != thermo_config["model_name"]:
         warnings.warn("The engine for optimization and thermochemistry do not match.")
 
-    if opt_config["memory"] != thermo_config["memory"]:
-        sys.exit(
-            "The GPU settings for optimization and thermochemistry do not match. Please set them to the same value."
-        )
+    # if opt_config["memory"] != thermo_config["memory"]:
+    #     sys.exit(
+    #         "The GPU settings for optimization and thermochemistry do not match. Please set them to the same value."
+    #     )
 
-    if opt_config["gpu_idx"] != thermo_config["gpu_idx"]:
-        warnings.warn(
-            "The GPU settings for optimization and thermochemistry do not match."
-        )
+    # if opt_config["gpu_idx"] != thermo_config["gpu_idx"]:
+    #     warnings.warn(
+    #         "The GPU settings for optimization and thermochemistry do not match."
+    #     )
 
 
 def check_device(use_gpu, gpu_idx):

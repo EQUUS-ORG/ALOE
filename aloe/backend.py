@@ -102,7 +102,6 @@ def embed_conformers(
 
 def optimize_conformers(
     input_file: str,
-    capacity: Optional[int] = max_conformers_per_GB_memory,
     use_gpu: Optional[bool] = False,
     gpu_idx: Optional[int] = 0,
     batchsize_atoms: Optional[int] = 2048,
@@ -146,12 +145,6 @@ def optimize_conformers(
         )
 
     output_file = make_output_name(input_file, "opt", io_file_type)
-
-    if capacity < max_conformers_per_GB_memory:
-        print(
-            f"The capacity (number of molecules per 1GB memory) is too small. Please set it to a value >= {max_conformers_per_GB_memory}.",
-            flush=True,
-        )
 
     start = time.time()
 

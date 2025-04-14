@@ -48,6 +48,32 @@ def smiles_from_file(input_file) -> List[str]:
     return smiles
 
 
+def read_csv(input_file):
+    """Reads a CSV file and returns the names and SMILES strings as lists."""
+    df = pd.read_csv(input_file)
+
+    # Extract columns by index
+    names = df.iloc[:, 0]  # First column (col 0) = Names
+    smiles = df.iloc[:, 1]  # Second column (col 1) = SMILES
+
+    # Convert to list
+    names = names.tolist()
+    smiles = smiles.tolist()
+
+    return names, smiles
+
+
+def read_csv_dict(input_file):
+    """Reads a CSV file and returns a dictionary with names as keys and SMILES strings as values."""
+    df = pd.read_csv(input_file)
+
+    # Extract columns by index
+    names = df.iloc[:, 0]  # First column (col 0) = Names
+    smiles = df.iloc[:, 1]  # Second column (col 1) = SMILES
+    data_dict = dict(zip(names, smiles))
+    return data_dict
+
+
 def check_input(input_file, expected_input_format):
     """
     Check the input file and give recommendations.
@@ -145,30 +171,37 @@ def check_csv_format(input_file):
     return True
 
 
-def read_csv(input_file):
-    """Reads a CSV file and returns the names and SMILES strings as lists."""
-    df = pd.read_csv(input_file)
+def update_hardware_settings(hardware_settings):
+    """Helper function to divide jobs based on available memory and update GPU settings."""
+    # Allow 42 SMILES strings per GB memory by default for generate_and_optimize_conformers
 
-    # Extract columns by index
-    names = df.iloc[:, 0]  # First column (col 0) = Names
-    smiles = df.iloc[:, 1]  # Second column (col 1) = SMILES
+    memory = hardware_settings["memory"]
+    use_gpu = hardware_settings["use_gpu"]
+    gpu_idx = hardware_settings["gpu_idx"]
+    batchsize_atoms = hardware_settings["batchsize_atoms"]
 
-    # Convert to list
-    names = names.tolist()
-    smiles = smiles.tolist()
+    t = 1
+    if memory is not None:
+        t = int(memory)
+    else:
+        if use_gpu:
+            if isinstance(gpu_idx, int):
+                first_gpu_idx = gpu_idx
+            else:
+                first_gpu_idx = gpu_idx[0]
+            if torch.cuda.is_available():
+                t = int(
+                    math.ceil(
+                        torch.cuda.get_device_properties(first_gpu_idx).total_memory
+                        / (1024**3)
+                    )
+                )
+        else:
+            t = int(psutil.virtual_memory().total / (1024**3))
 
-    return names, smiles
-
-
-def read_csv_dict(input_file):
-    """Reads a CSV file and returns a dictionary with names as keys and SMILES strings as values."""
-    df = pd.read_csv(input_file)
-
-    # Extract columns by index
-    names = df.iloc[:, 0]  # First column (col 0) = Names
-    smiles = df.iloc[:, 1]  # Second column (col 1) = SMILES
-    data_dict = dict(zip(names, smiles))
-    return data_dict
+    # batchsize_atoms based on GPU memory
+    batchsize_atoms = batchsize_atoms * t
+    return t, batchsize_atoms
 
 
 def SDF2chunks(sdf: str) -> List[List[str]]:
@@ -189,18 +222,20 @@ def SDF2chunks(sdf: str) -> List[List[str]]:
     return chunks
 
 
-def fill_chunks(path0, file_type):
+def batch_calculations(input_file):
     """Given a file path and file type, returns the indexes of the molecules in the file, ordered by size and groupped by name."""
 
+    file_type = input_file.split(".")[-1].strip()
+
     if file_type == "sdf":
-        suppl = Chem.SDMolSupplier(path0, removeHs=False)
+        suppl = Chem.SDMolSupplier(input_file, removeHs=False)
     elif file_type == "csv":
-        _, smiles = read_csv(path0)
+        _, smiles = read_csv(input_file)
         suppl = []
         for smile in smiles:
             if smile is not None:
                 mol = Chem.AddHs(Chem.MolFromSmiles(smile))
-                mol.SetProp("_Name", smile)
+                # mol.SetProp("_Name", Chem.MolToSmiles(mol, canonical=True))
                 suppl.append(mol)
 
     # keys are the molecule names,
@@ -208,151 +243,221 @@ def fill_chunks(path0, file_type):
     molecule_dict = {}
     for idx, mol in enumerate(suppl):
         if mol is not None:
-            identifier = mol.GetProp("_Name").strip()
-
-            if identifier not in molecule_dict:
-                molecule_dict[identifier] = []
             mol = Chem.AddHs(mol)
+
             num_atoms = mol.GetNumAtoms()
-            molecule_dict[identifier].append((idx, num_atoms))
 
-    return batch(molecule_dict)
+            if num_atoms not in molecule_dict:
+                molecule_dict[num_atoms] = {}
 
+            # Want molecules of the same type to stay together
+            identifier = Chem.MolToSmiles(mol, canonical=True)
 
-def batch(molecule_dict):
-    """Given a dictionary of molecules, return a list of indexes of the molecules in the file, ordered by size and groupped by name."""
+            if identifier not in molecule_dict[num_atoms]:
+                molecule_dict[num_atoms][identifier] = []
 
-    # a list of the molecule indexes in the original file, sorted by size (ascending) and grouped by name
-    ordered_indexes = []
-    total_size = 0
+            molecule_dict[num_atoms][identifier].append(idx)
 
-    # a list of tuples of molecule identifiers and the total size of all their atoms
-    before_ordered_indexes = []
-    for identifier, same_name_list in molecule_dict.items():
-        same_name_size = sum(num_atoms for _, num_atoms in same_name_list)
-        before_ordered_indexes.append((identifier, same_name_size))
-        total_size += same_name_size
+    for num_atoms, identifiers in molecule_dict.items():
+        # sorted by the number of molecules of the same name (descending)
+        sorted_identifiers = {
+            identifier: indices
+            for identifier, indices in sorted(
+                identifiers.items(), key=lambda item: len(item[1]), reverse=True
+            )
+        }
 
-    almost_sorted = sorted(before_ordered_indexes, key=lambda x: x[1])
-    ordered_indexes = []
-    for identifier, _ in almost_sorted:
-        index_list = molecule_dict[identifier]
-        for idx, _ in index_list:
-            ordered_indexes.append(idx)
+        molecule_dict[num_atoms] = sorted_identifiers
 
-    return ordered_indexes
+    return {key: molecule_dict[key] for key in sorted(molecule_dict)}
 
 
-def _divide_jobs_based_on_memory(hardware_settings):
-    """Helper function to divide jobs based on available memory and update GPU settings."""
-    # Allow 42 SMILES strings per GB memory by default for generate_and_optimize_conformers
+def batch_files(input_file, int_dir, basename, input_format, batch_info):
 
-    capacity = hardware_settings["capacity"]
-    memory = hardware_settings["memory"]
-    use_gpu = hardware_settings["use_gpu"]
-    gpu_idx = hardware_settings["gpu_idx"]
-    batchsize_atoms = hardware_settings["batchsize_atoms"]
+    batched_files = []
+    updated_batch_info = {}
 
-    smiles_per_G = capacity
-    num_jobs = 1
-    t = 1
-    if memory is not None:
-        t = int(memory)
-    else:
-        if use_gpu:
-            if isinstance(gpu_idx, int):
-                first_gpu_idx = gpu_idx
-            else:
-                first_gpu_idx = gpu_idx[0]
-                num_jobs = len(gpu_idx)
-            if torch.cuda.is_available():
-                t = int(
-                    math.ceil(
-                        torch.cuda.get_device_properties(first_gpu_idx).total_memory
-                        / (1024**3)
-                    )
-                )
-        else:
-            t = int(psutil.virtual_memory().total / (1024**3))
-    chunk_size = t * smiles_per_G
-    # batchsize_atoms based on GPU memory
-    batchsize_atoms = batchsize_atoms * t
-    return t, batchsize_atoms, num_jobs, chunk_size
+    if input_format == "csv":
+        names, smiles = read_csv(input_file)
+
+        for num_atoms, identifiers in batch_info.items():
+
+            updated_batch_info[num_atoms] = {}
+
+            # number of atoms of molecules of this size
+            total_atoms = 0
+            new_basename = basename + "_size_" + str(num_atoms) + f".{input_format}"
+            new_file = os.path.join(int_dir, new_basename)
+
+            # in reference to the new batched file
+            new_index = 0
+
+            with open(new_file, "w") as f:
+                f.write("Name,SMILES\n")
+
+                for identifier, index_list in identifiers.items():
+                    updated_batch_info[num_atoms][identifier] = []
+
+                    total_atoms += len(index_list) * num_atoms
+                    for idx in index_list:
+                        updated_batch_info[num_atoms][identifier].append(new_index)
+                        new_index += 1
+                        f.write(f"{names[idx]},{smiles[idx]}\n")
+
+            batched_files.append((new_file, total_atoms))
+
+    elif input_format == "sdf":
+        df = SDF2chunks(input_file)
+
+        for num_atoms, identifiers in batch_info.items():
+
+            updated_batch_info[num_atoms] = {}
+
+            # number of atoms of molecules of this size
+            total_atoms = 0
+            new_basename = basename + "_size_" + str(num_atoms) + f".{input_format}"
+            new_file = os.path.join(int_dir, new_basename)
+
+            new_index = 0
+
+            with open(new_file, "w") as f:
+                for identifier, index_list in identifiers.items():
+
+                    updated_batch_info[num_atoms][identifier] = []
+
+                    total_atoms += len(index_list) * num_atoms
+                    for idx in index_list:
+
+                        updated_batch_info[num_atoms][identifier].append(new_index)
+                        new_index += 1
+
+                        for line in df[idx]:
+                            f.write(line)
+            batched_files.append((new_file, total_atoms))
+
+    return batched_files, updated_batch_info
 
 
-def _save_chunks(input_file, t, num_jobs, chunk_size):
+def save_chunks(input_file, t, do_batch, batch_info):
     r"""
     Given an input file, divide the file into chunks based on the available memory and the number of jobs.
     """
-
+    # Creates an intermediate file.
     basename = os.path.basename(input_file).split(".")[0].strip()
     input_format = input_file.split(".")[-1].strip()
     int_dir = os.path.join(os.path.dirname(input_file), basename + "_intermediates")
     os.mkdir(int_dir)
 
-    ordered_indexes = fill_chunks(input_file, input_format)
+    if do_batch:
+        files_to_chunk, batch_info = batch_files(
+            input_file, int_dir, basename, input_format, batch_info
+        )
+    else:
+        total_atoms = sum(
+            num_atoms * sum(len(index_list) for index_list in identifiers.values())
+            for num_atoms, identifiers in batch_info.items()
+        )
+        files_to_chunk = [(input_file, total_atoms)]
 
-    # placeholder
+    chunked_files = []
+
+    # Start chunking process
     if input_format == "csv":
-        names, smiles = read_csv(input_file)
-        data_size = len(smiles)
 
-        current_write_index = 0
-        num_chunks = max(round(data_size // chunk_size), num_jobs)
+        for i, names_dict in enumerate(batch_info.values()):
+            batched_file, total_atoms = files_to_chunk[i]
 
-        print(f"The available memory is {t} GB.", flush=True)
-        print(f"The task will be divided into {num_chunks} job(s).", flush=True)
+            if total_atoms < 2**20:
+                chunked_files.append(batched_file)
+                continue
 
-        mols_per_chunk = math.ceil(data_size / num_chunks)
+            names, smiles = read_csv(batched_file)
+            data_size = len(smiles)
 
-        chunked_files = []
+            num_chunks = math.ceil(total_atoms / 2**20)
+            mols_per_chunk = math.ceil(data_size / num_chunks)
 
-        for i in range(num_chunks):
-            new_basename = basename + "_" + str(i + 1) + f".{input_format}"
-            new_name = os.path.join(int_dir, new_basename)
-            curr_job_inputs = 0
-            with open(new_name, "w") as f:
-                f.write("Name,SMILES\n")
-                while (
-                    current_write_index % mols_per_chunk < mols_per_chunk
-                    and current_write_index < data_size
+            chunks_of_same_size = []
+
+            for i in range(num_chunks):
+                basename = os.path.basename(batched_file).split(".")[0].strip()
+                new_basename = basename + "_chunk_" + str(i + 1) + f".{input_format}"
+                new_name = os.path.join(int_dir, new_basename)
+                chunks_of_same_size.append(new_name)  # files of same size
+                chunked_files.append(new_name)  # total files
+                with open(new_name, "w") as f:
+                    f.write("Name,SMILES\n")
+
+            current_chunk = 0
+            mols_in_current_chunk = 0
+
+            for index_list in names_dict.values():
+                if (
+                    len(index_list) + mols_in_current_chunk > mols_per_chunk
+                    and current_chunk < num_chunks - 1
                 ):
-                    sorted_index = ordered_indexes[current_write_index]
-                    f.write(f"{names[sorted_index]},{smiles[sorted_index]}\n")
-                    current_write_index += 1
-                    curr_job_inputs += 1
-            print(f"Job{i+1}, number of inputs: {curr_job_inputs}", flush=True)
-            chunked_files.append(new_name)
+                    print(
+                        f"Job{current_chunk+1}, number of inputs: {mols_in_current_chunk}",
+                        flush=True,
+                    )
+
+                    current_chunk += 1
+
+                with open(chunks_of_same_size[current_chunk], "w") as f:
+                    for idx in index_list:
+                        f.write(f"{names[idx]},{smiles[idx]}\n")
+                        curr_job_inputs += 1
+                        mols_in_current_chunk += 1
 
     elif input_format == "sdf":
-        # Get indexes for each chunk
-        df = SDF2chunks(input_file)
-        data_size = len(df)
-        num_chunks = max(round(data_size // chunk_size), num_jobs)
 
-        print(f"The available memory is {t} GB.", flush=True)
-        print(f"The task will be divided into {num_chunks} job(s).", flush=True)
+        for i, names_dict in enumerate(batch_info.values()):
+            batched_file, total_atoms = files_to_chunk[i]
 
-        current_write_index = 0
-        mols_per_chunk = math.ceil(data_size / num_chunks)
-        # Save each chunk as an individual file
-        chunked_files = []
-        for i in range(num_chunks):
-            new_basename = basename + "_" + str(i + 1) + f".{input_format}"
-            new_name = os.path.join(int_dir, new_basename)
-            curr_job_inputs = 0
-            with open(new_name, "w") as f:
-                while (
-                    current_write_index % mols_per_chunk < mols_per_chunk
-                    and current_write_index < data_size
+            if total_atoms < 2**20:
+                chunked_files.append(batched_file)
+                continue
+
+            # Get indexes for each chunk
+            df = SDF2chunks(input_file)
+            data_size = len(df)
+
+            num_chunks = math.ceil(total_atoms / 2**20)
+            mols_per_chunk = math.ceil(data_size / num_chunks)
+
+            chunks_of_same_size = []
+
+            for i in range(num_chunks):
+                basename = os.path.basename(batched_file).split(".")[0].strip()
+                new_basename = basename + "_chunk_" + str(i + 1) + f".{input_format}"
+                new_name = os.path.join(int_dir, new_basename)
+                chunks_of_same_size.append(new_name)  # files of same size
+                chunked_files.append(new_name)  # total files
+
+            current_chunk = 0
+            mols_in_current_chunk = 0
+
+            for index_list in names_dict.values():
+                if (
+                    len(index_list) + mols_in_current_chunk > mols_per_chunk
+                    and current_chunk < num_chunks - 1
                 ):
-                    sorted_index = ordered_indexes[current_write_index]
-                    for line in df[sorted_index]:
-                        f.write(line)
-                    current_write_index += 1
-                    curr_job_inputs += 1
-            print(f"Job{i+1}, number of inputs: {curr_job_inputs}", flush=True)
-            chunked_files.append(new_name)
+                    print(
+                        f"Job{current_chunk+1}, number of inputs: {mols_in_current_chunk}",
+                        flush=True,
+                    )
+
+                    current_chunk += 1
+
+                with open(chunks_of_same_size[current_chunk], "w") as f:
+                    for idx in index_list:
+                        for line in df[idx]:
+                            f.write(line)
+                        curr_job_inputs += 1
+                        mols_in_current_chunk += 1
+
+    print(f"The available memory is {t} GB.", flush=True)
+    print(f"The task will be divided into {num_chunks} job(s).", flush=True)
 
     return chunked_files
 
