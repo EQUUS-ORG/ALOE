@@ -225,7 +225,7 @@ def SDF2chunks(sdf: str) -> List[List[str]]:
 def batch_calculations(input_file):
     """Given a file path and file type, returns the indexes of the molecules in the file, ordered by size and groupped by name."""
 
-    print("Beginning batch calculations...", flush=True)
+    print("Beginning calculations for file processing...", flush=True)
 
     file_type = input_file.split(".")[-1].strip()
 
@@ -260,6 +260,7 @@ def batch_calculations(input_file):
 
             molecule_dict[num_atoms][identifier].append(idx)
 
+    print("Sorting calculated file information...", flush=True)
     for num_atoms, identifiers in molecule_dict.items():
         # sorted by the number of molecules of the same name (descending)
         sorted_identifiers = {

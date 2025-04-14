@@ -166,8 +166,8 @@ class aloe:
         # Consolidate into one list
         if isinstance(self.hardware_settings["gpu_idx"], int):
             self.hardware_settings["gpu_idx"] = [self.hardware_settings["gpu_idx"]]
-            del self.user_parameters["OptConfig"]["gpu_idx"]
-            del self.user_parameters["ThermoConfig"]["gpu_idx"]
+            # del self.user_parameters["OptConfig"]["gpu_idx"]
+            # del self.user_parameters["ThermoConfig"]["gpu_idx"]
 
         # Not needed for the backend, just for hardware settings
         del self.user_parameters["OptConfig"]["memory"]
