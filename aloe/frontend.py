@@ -166,12 +166,7 @@ class aloe:
         # Consolidate into one list
         if isinstance(self.hardware_settings["gpu_idx"], int):
             self.hardware_settings["gpu_idx"] = [self.hardware_settings["gpu_idx"]]
-            # del self.user_parameters["OptConfig"]["gpu_idx"]
-            # del self.user_parameters["ThermoConfig"]["gpu_idx"]
 
-        # Not needed for the backend, just for hardware settings
-        del self.user_parameters["OptConfig"]["memory"]
-        del self.user_parameters["ThermoConfig"]["memory"]
 
         # This is the only relevant hardware setting for the pipeline
         self.hardware_settings = self.hardware_settings["gpu_idx"]
