@@ -167,7 +167,6 @@ class aloe:
         if isinstance(self.hardware_settings["gpu_idx"], int):
             self.hardware_settings["gpu_idx"] = [self.hardware_settings["gpu_idx"]]
 
-
         # This is the only relevant hardware setting for the pipeline
         self.hardware_settings = self.hardware_settings["gpu_idx"]
 

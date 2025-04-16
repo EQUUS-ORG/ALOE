@@ -366,6 +366,7 @@ def save_chunks(input_file, t, do_batch, batch_info):
             for num_atoms, identifiers in batch_info.items()
         )
         files_to_chunk = [(input_file, total_atoms)]
+        print(f"Total number of atoms in the input file: {total_atoms}", flush=True)
 
     chunked_files = []
 
@@ -375,12 +376,19 @@ def save_chunks(input_file, t, do_batch, batch_info):
         for i, names_dict in enumerate(batch_info.values()):
             batched_file, total_atoms = files_to_chunk[i]
 
-            if total_atoms < 2**20:
-                chunked_files.append(batched_file)
-                continue
-
             names, smiles = read_csv(batched_file)
             data_size = len(smiles)
+
+            if total_atoms < 2**20:
+                basename = os.path.basename(batched_file).split(".")[0].strip()
+                new_basename = basename + "_chunk_" + str(i + 1) + f".{input_format}"
+                new_name = os.path.join(int_dir, new_basename)
+                chunked_files.append(new_name)  # total files
+                with open(new_name, "w") as f:
+                    f.write("Name,SMILES\n")
+                    for idx in range(data_size):
+                        f.write(f"{names[idx]},{smiles[idx]}\n")
+                continue
 
             num_chunks = math.ceil(total_atoms / 2**20)
             mols_per_chunk = math.ceil(data_size / num_chunks)
@@ -426,13 +434,20 @@ def save_chunks(input_file, t, do_batch, batch_info):
         for i, names_dict in enumerate(batch_info.values()):
             batched_file, total_atoms = files_to_chunk[i]
 
-            if total_atoms < 2**20:
-                chunked_files.append(batched_file)
-                continue
-
             # Get indexes for each chunk
             df = SDF2chunks(input_file)
             data_size = len(df)
+
+            if total_atoms < 2**20:
+                basename = os.path.basename(batched_file).split(".")[0].strip()
+                new_basename = basename + "_chunk_" + str(i + 1) + f".{input_format}"
+                new_name = os.path.join(int_dir, new_basename)
+                chunked_files.append(new_name)  # total files
+                with open(new_name, "w") as f:
+                    for idx in range(data_size):
+                        for line in df[idx]:
+                            f.write(line)
+                continue
 
             num_chunks = math.ceil(total_atoms / 2**20)
             mols_per_chunk = math.ceil(data_size / num_chunks)
@@ -473,7 +488,7 @@ def save_chunks(input_file, t, do_batch, batch_info):
             )
 
     print(f"The available memory is {t} GB.", flush=True)
-    print(f"The task will be divided into {num_chunks} job(s).", flush=True)
+    print(f"The task will be divided into {len(chunked_files)} job(s).", flush=True)
 
     return chunked_files
 
