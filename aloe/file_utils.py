@@ -237,8 +237,9 @@ def batch_calculations(input_file):
         for smile in smiles:
             if smile is not None:
                 mol = Chem.AddHs(Chem.MolFromSmiles(smile))
-                # mol.SetProp("_Name", Chem.MolToSmiles(mol, canonical=True))
                 suppl.append(mol)
+
+    print(f"Input file has {len(suppl)} molecules.", flush=True)
 
     # keys are the molecule names,
     # values are lists of index in path and number of atoms
@@ -366,6 +367,13 @@ def save_chunks(input_file, t, do_batch, batch_info):
             for num_atoms, identifiers in batch_info.items()
         )
         files_to_chunk = [(input_file, total_atoms)]
+        
+       
+        batch_info_dict = {}
+        for identifiers in batch_info.values():
+            batch_info_dict.update(identifiers)
+            
+        batch_info = {1: batch_info_dict}
         print(f"Total number of atoms in the input file: {total_atoms}", flush=True)
 
     chunked_files = []
