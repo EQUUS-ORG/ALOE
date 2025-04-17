@@ -367,13 +367,19 @@ def save_chunks(input_file, t, do_batch, batch_info):
             for num_atoms, identifiers in batch_info.items()
         )
         files_to_chunk = [(input_file, total_atoms)]
-        
-       
+
         batch_info_dict = {}
         for identifiers in batch_info.values():
-            batch_info_dict.update(identifiers)
-            
-        batch_info = {1: batch_info_dict}
+            for key, value in identifiers.items():
+                if key in batch_info_dict:
+                    # Combine values to avoid overwriting
+                    if isinstance(batch_info_dict[key], list):
+                        batch_info_dict[key].extend(value)
+                else:
+                    batch_info_dict[key] = value
+
+        batch_info = {1: batch_info_dict}  # Wrap in a dict with key 1 for compatibility
+
         print(f"Total number of atoms in the input file: {total_atoms}", flush=True)
 
     chunked_files = []
@@ -392,7 +398,7 @@ def save_chunks(input_file, t, do_batch, batch_info):
                 new_basename = basename + "_chunk_" + str(i + 1) + f".{input_format}"
                 new_name = os.path.join(int_dir, new_basename)
                 chunked_files.append(new_name)  # total files
-                with open(new_name, "w") as f:
+                with open(new_name, "a") as f:
                     f.write("Name,SMILES\n")
                     for idx in range(data_size):
                         f.write(f"{names[idx]},{smiles[idx]}\n")
@@ -409,7 +415,7 @@ def save_chunks(input_file, t, do_batch, batch_info):
                 new_name = os.path.join(int_dir, new_basename)
                 chunks_of_same_size.append(new_name)  # files of same size
                 chunked_files.append(new_name)  # total files
-                with open(new_name, "w") as f:
+                with open(new_name, "a") as f:
                     f.write("Name,SMILES\n")
 
             current_chunk = 0
@@ -427,7 +433,7 @@ def save_chunks(input_file, t, do_batch, batch_info):
                     mols_in_current_chunk = 0
                     current_chunk += 1
 
-                with open(chunks_of_same_size[current_chunk], "w") as f:
+                with open(chunks_of_same_size[current_chunk], "a") as f:
                     for idx in index_list:
                         f.write(f"{names[idx]},{smiles[idx]}\n")
                         mols_in_current_chunk += 1
@@ -451,7 +457,7 @@ def save_chunks(input_file, t, do_batch, batch_info):
                 new_basename = basename + "_chunk_" + str(i + 1) + f".{input_format}"
                 new_name = os.path.join(int_dir, new_basename)
                 chunked_files.append(new_name)  # total files
-                with open(new_name, "w") as f:
+                with open(new_name, "a") as f:
                     for idx in range(data_size):
                         for line in df[idx]:
                             f.write(line)
@@ -484,8 +490,11 @@ def save_chunks(input_file, t, do_batch, batch_info):
                     mols_in_current_chunk = 0
                     current_chunk += 1
 
-                with open(chunks_of_same_size[current_chunk], "w") as f:
+                with open(chunks_of_same_size[current_chunk], "a") as f:
                     for idx in index_list:
+                        mol = df[idx]
+                        if not mol:
+                            print(f"[Empty] Molecule at idx {idx}")
                         for line in df[idx]:
                             f.write(line)
                         mols_in_current_chunk += 1
