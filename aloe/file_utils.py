@@ -50,7 +50,7 @@ def smiles_from_file(input_file) -> List[str]:
 
 def read_csv(input_file):
     """Reads a CSV file and returns the names and SMILES strings as lists."""
-    df = pd.read_csv(input_file)
+    df = pd.read_csv(input_file, dtype=str)
 
     # Extract columns by index
     names = df.iloc[:, 0]  # First column (col 0) = Names
@@ -65,7 +65,7 @@ def read_csv(input_file):
 
 def read_csv_dict(input_file):
     """Reads a CSV file and returns a dictionary with names as keys and SMILES strings as values."""
-    df = pd.read_csv(input_file)
+    df = pd.read_csv(input_file, dtype=str)
 
     # Extract columns by index
     names = df.iloc[:, 0]  # First column (col 0) = Names
