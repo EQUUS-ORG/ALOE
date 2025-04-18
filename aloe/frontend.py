@@ -1,8 +1,10 @@
 import asyncio
 import functools
+import multiprocessing
 import os
 from dataclasses import asdict, dataclass
-from typing import List, Union
+from queue import Queue
+from typing import List
 
 from aloe.backend import (
     calculate_thermo,
@@ -168,12 +170,17 @@ class aloe:
             self.hardware_settings["gpu_idx"] = [self.hardware_settings["gpu_idx"]]
 
         # This is the only relevant hardware setting for the pipeline
-        self.hardware_settings = self.hardware_settings["gpu_idx"]
+        # -1 to indicate only CPU calculations
+        self.hardware_settings = (
+            self.hardware_settings["gpu_idx"]
+            if self.hardware_settings["use_gpu"]
+            else [-1]
+        )
 
         # Ensure all required parameters are set before running the pipeline
         return chunks
 
-    async def run(self):
+    def run(self):
         r"""
         This function runs the aloe pipeline. Choose which functions to run and optionally set parameters for each function.
         Returns:
@@ -183,7 +190,7 @@ class aloe:
 
         chunks = self.prepwork()
 
-        output_files = await run_auto3D_pipeline(
+        output_files = run_auto3D_pipeline(
             chunks,
             self.selected_functions,
             self.user_parameters,
@@ -265,27 +272,27 @@ class aloe:
         return output_file, failed_file
 
 
-async def run_gen(input_file, **kwargs):
+def run_gen(input_file, **kwargs):
     """Generate isomers async wrapper"""
     return generate_stereoisomers(input_file, **kwargs)
 
 
-async def run_embed(input_file, **kwargs):
+def run_embed(input_file, **kwargs):
     """Embed conformers async wrapper"""
     return embed_conformers(input_file, **kwargs)
 
 
-async def run_opt(input_file, **kwargs):
+def run_opt(input_file, **kwargs):
     """Optimize conformers async wrapper"""
     return optimize_conformers(input_file, **kwargs)
 
 
-async def run_rank(input_file, **kwargs):
+def run_rank(input_file, **kwargs):
     """Rank conformers async wrapper"""
     return rank_conformers(input_file, **kwargs)
 
 
-async def run_thermo(input_file, **kwargs):
+def run_thermo(input_file, **kwargs):
     """Calculate thermochemistry async wrapper"""
     return calculate_thermo(input_file, **kwargs)
 
@@ -299,96 +306,87 @@ FUNCTIONS = {
 }
 
 
-async def process_chunk(chunk, pipeline, gpu_index):
+# === Pipeline ===
+def run_pipeline(input_file, pipeline, gpu_index):
+    current_file = input_file
+    for step in pipeline:
+        if step is not None:
+            if step.func.__name__ == "run_opt" or step.func.__name__ == "run_thermo":
+                step = functools.partial(step, gpu_idx=gpu_index)
+
+            try:
+                current_file = step(input_file=current_file)
+            except Exception as e:
+                print(f"Error processing step {step.__name__}: {e}", flush=True)
+
+    return current_file
+
+
+# === GPU Worker ===
+def gpu_worker(gpu_id, input_file, pipeline, result_queue):
+    if not gpu_id == -1:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    final_output = run_pipeline(input_file, pipeline, gpu_id)
+    result_queue.put((gpu_id, final_output))
+
+
+# === Job Manager ===
+def gpu_job_manager(jobs, available_gpus):
+    result_queue = multiprocessing.Queue()
+    gpu_pool = Queue()
+    for gpu in available_gpus:
+        gpu_pool.put(gpu)
+
+    final_outputs = []
+    job_idx = 0
+    running = 0
+
+    while job_idx < len(jobs) or running > 0:
+        # Dispatch job if there's a free GPU and jobs remain
+        if job_idx < len(jobs) and not gpu_pool.empty():
+            gpu_id = gpu_pool.get()
+            input_file, enabled_steps = jobs[job_idx]
+            p = multiprocessing.Process(
+                target=gpu_worker,
+                args=(gpu_id, input_file, enabled_steps, result_queue),
+            )
+            p.start()
+            job_idx += 1
+            running += 1
+
+        # If all GPUs are busy or no jobs left, wait for a result
+        elif running > 0:
+            gpu_id, final_output = result_queue.get()
+            final_outputs.append(final_output)
+            gpu_pool.put(gpu_id)
+            running -= 1
+
+    return final_outputs
+
+
+def run_auto3D_pipeline(
+    chunks: List[str],
+    selected_functions: List[str],
+    user_parameters: dict,
+    gpu_indicies: List[int],
+):
     r"""
-    Process a chunk of data through the pipeline.
+    Runs the Auto3D pipeline on the given chunks of data.
     Args:
-        chunk: str, path to the input file chunk.
-        pipeline: list of functions to run on the chunk.
-        gpu_index: int, GPU index to use for processing.
+        chunks: list of str, paths to input files.
+        selected_functions: list of str, names of functions to run.
+        user_parameters: dict, user-defined parameters for the functions.
+        hardware_settings: int or list of int, GPU index or indices to use for processing.
     Returns:
-        chunk: str, path to the output file.
+        list of str, paths to output files.
     """
-
-    for partial_func in pipeline:
-        if (
-            partial_func.func.__name__ == "run_opt"
-            or partial_func.func.__name__ == "run_thermo"
-        ):
-            partial_func = functools.partial(partial_func, gpu_idx=gpu_index)
-        try:
-            chunk = await partial_func(input_file=chunk)
-        except Exception as e:
-            print("ERROR: ", e, flush=True)
-
-    return chunk
-
-
-async def worker(queue, pipeline, gpu_index, output_queue):
-    r"""
-    Assigns chunk to one gpu_index
-    Args:
-        queue: asyncio.Queue, queue of chunks to process.
-        pipeline: list of functions to run on the chunk.
-        gpu_index: int, GPU index to use for processing.
-        output_queue: asyncio.Queue, queue to store the results.
-    """
-    while True:
-        chunk = await queue.get()
-        if chunk is None:
-            break
-        res = await process_chunk(chunk, pipeline, gpu_index)
-        queue.task_done()
-        output_queue.put_nowait(res)
-
-
-async def get_list_from_queue(queue):
-    r"""
-    Get all items from the queue.
-    Args:
-        queue: asyncio.Queue, queue to get items from.
-    """
-    items = []
-    while not queue.empty():
-        item = await queue.get()
-        items.append(item)
-        queue.task_done()  # Mark the item as processed
-    return items
-
-
-async def run_auto3D_pipeline(chunks, selected_functions, parameters, gpu_indicies):
-    r"""
-    Run the auto3D pipeline asynchronously.
-    Args:
-        chunks: list of str, paths to the input file chunks.
-        selected_functions: list of str, functions to run on the chunks.
-        parameters: dict, parameters for each function.
-        gpu_indicies: list of int, GPU indices to use for processing.
-    Returns:
-        list of str, paths to the output files.
-    """
+    multiprocessing.set_start_method("spawn", force=True)
 
     pipeline = [
-        functools.partial(FUNCTIONS[func], **parameters[func])
+        functools.partial(FUNCTIONS[func], **user_parameters[func])
         for func in selected_functions
     ]
 
-    queue = asyncio.Queue()
-    for chunk in chunks:
-        await queue.put(chunk)
+    jobs = [(chunk, pipeline) for chunk in chunks]
 
-    output_queue = asyncio.Queue()
-
-    tasks = []
-    for gpu_index in gpu_indicies:
-        task = asyncio.create_task(worker(queue, pipeline, gpu_index, output_queue))
-        tasks.append(task)
-
-    await queue.join()
-
-    for _ in gpu_indicies:
-        await queue.put(None)
-
-    await asyncio.gather(*tasks)
-
-    return await get_list_from_queue(output_queue)
+    return gpu_job_manager(jobs, gpu_indicies)
