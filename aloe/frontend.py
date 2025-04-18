@@ -317,7 +317,7 @@ def run_pipeline(input_file, pipeline, gpu_index):
             try:
                 current_file = step(input_file=current_file)
             except Exception as e:
-                print(f"Error processing step {step.__name__}: {e}", flush=True)
+                print(f"Error processing step {step.func.__name__}: {e}", flush=True)
 
     return current_file
 
