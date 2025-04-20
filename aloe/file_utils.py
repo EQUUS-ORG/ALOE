@@ -355,6 +355,27 @@ def save_chunks(input_file, t, do_batch, batch_info):
     basename = os.path.basename(input_file).split(".")[0].strip()
     input_format = input_file.split(".")[-1].strip()
     int_dir = os.path.join(os.path.dirname(input_file), basename + "_intermediates")
+    
+    # Handle case where directory already exists
+    if os.path.exists(int_dir):
+        # Find all existing numbered directories
+        parent_dir = os.path.dirname(int_dir)
+        base_name = os.path.basename(int_dir)
+        existing_dirs = [d for d in os.listdir(parent_dir) 
+                        if d.startswith(base_name) and os.path.isdir(os.path.join(parent_dir, d))]
+        
+        # Extract numbers from existing directories
+        numbers = [0]  # Start with 0 in case no numbered directories exist
+        for d in existing_dirs:
+            try:
+                num = int(d.split('_')[-1])
+                numbers.append(num)
+            except ValueError:
+                continue
+        
+        # Use the next available number
+        int_dir = f"{int_dir}_{max(numbers) + 1}"
+    
     os.mkdir(int_dir)
 
     if do_batch:
