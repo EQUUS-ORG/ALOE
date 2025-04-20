@@ -8,7 +8,7 @@ ALOE is a simple pipeline that generates and optimizes conformers, using a neura
 <p align="center">
     <img src="pics/ALOE_flowchart.png" width="1000" style="display: block"/>
 <p>
-The backend is adapted from Auto3D (https://github.com/isayevlab/Auto3D_pkg). The default model is AIMNet2 (https://chemrxiv.org/engage/chemrxiv/article-details/6763b51281d2151a022fb6a5).
+The backend is adapted from [Auto3D](https://github.com/isayevlab/Auto3D_pkg). The default model is [AIMNet2](https://chemrxiv.org/engage/chemrxiv/article-details/6763b51281d2151a022fb6a5).
 
 ALOE's front-end grants full control over individual operations. Please see below for an example that includes all the steps shown in the previous flow chart.
 
