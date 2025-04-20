@@ -34,7 +34,8 @@ conda create -n aloe python=3.12 -y
 conda activate aloe
 ```
 
-Install PyTorch. 
+Install PyTorch based on your operating system, for reference visit [PyTorch Documentation](https://pytorch.org/get-started/locally/).
+For Mac users, use the following command.
 
 ```bash
 pip install torch
