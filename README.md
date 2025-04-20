@@ -3,7 +3,7 @@
 
 ## What is this?
 
-ALOE is a simple pipeline that generates and optimizes conformers, using a neural interatomic potential as the calculator. A complete end-to-end workflow generates optimized 3d conformers from SMILES strings, with electronic and Gibbs free energies evaluated.
+ALOE is a simple pipeline that generates and optimizes conformers, using a neural interatomic potential as the calculator. A complete end-to-end workflow generates optimized 3d conformers from SMILES strings, with electronic and Gibbs free energies evaluated. Works best on a Linux/Mac operating system.
 
 <p align="center">
     <img src="pics/ALOE_flowchart.png" width="1000" style="display: block"/>
@@ -18,7 +18,7 @@ import aloe
 engine = aloe.aloe(input_file = "test.csv")
 engine.add_step(aloe.StereoIsoConfig()) # Generate stereoisomers
 engine.add_step(aloe.ConformerConfig()) # Embed conformers
-engine.add_step(aloe.OptConfig()) # Optimize conformers
+engine.add_step(aloe.OptConfig()) # Optimize conformers, add argument use_gpu=True to use GPU
 engine.add_step(aloe.RankConfig(k=3)) # Rank optimized conformers, pick the best 3
 engine.add_step(aloe.ThermoConfig()) # Thermochemistry calculations via ASE
 output_file = engine.run() # Asynchronous execution
