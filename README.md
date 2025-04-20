@@ -1,4 +1,4 @@
-# <img src="pics/aloe.png" width="24"/> ALOE: Asynchronous Lightweight Optimization Engine
+# <img src="pics/aloe.png" width="24"/> ALOE: Adaptive Lightweight Optimization Engine
 
 
 ## What is this?
@@ -7,8 +7,9 @@ ALOE is a simple pipeline that generates and optimizes conformers, using a neura
 
 <p align="center">
     <img src="pics/ALOE_flowchart.png" width="1000" style="display: block"/>
-<p>
-The backend is adapted from [Auto3D](https://github.com/isayevlab/Auto3D_pkg). The default model is [AIMNet2](https://chemrxiv.org/engage/chemrxiv/article-details/6763b51281d2151a022fb6a5).
+</p>
+
+The backend is adapted from [Auto3D](https://github.com/isayevlab/Auto3D_pkg "Auto3D GitHub Repository"). The default model is [AIMNet2](https://chemrxiv.org/engage/chemrxiv/article-details/6763b51281d2151a022fb6a5).
 
 ALOE's front-end grants full control over individual operations. Please see below for an example that includes all the steps shown in the previous flow chart.
 
@@ -21,7 +22,7 @@ engine.add_step(aloe.ConformerConfig()) # Embed conformers
 engine.add_step(aloe.OptConfig()) # Optimize conformers, add argument use_gpu=True to use GPU
 engine.add_step(aloe.RankConfig(k=3)) # Rank optimized conformers, pick the best 3
 engine.add_step(aloe.ThermoConfig()) # Thermochemistry calculations via ASE
-output_file = engine.run() # Asynchronous execution
+output_file = engine.run() # Concurrent execution
 
 print(output_file)
 ```
@@ -54,7 +55,7 @@ pip install aloe-engine
 
 ## Why aynchronous execution?
 
-Molecules in the input files are batched at the start of the job according to their sizes (numbers of atoms) and the system's memory (RAM) limit. All subsequent steps are executed asynchronously to optimize usage of available CPUs/GPUs as specified by the user.
+Molecules in the input files are batched at the start of the job according to their sizes (numbers of atoms) and the system's memory (RAM) limit. All subsequent steps are executed concurrently to optimize usage of available CPUs/GPUs as specified by the user.
 
 ## Citations
 
