@@ -23,7 +23,7 @@ class ranking(object):
     """
 
     def __init__(
-        self, input_path, out_path, threshold, k=None, window=None, encoded=False
+        self, input_path, out_path, threshold, k=None, window=None
     ):
         r"""
         Args:
@@ -53,16 +53,11 @@ class ranking(object):
         }
         self.k = k
         self.window = window
-        self.encoded = encoded
 
         if window is not None:
             assert window >= 0
             self.window_eV = window / ev2kcalpermol  # convert energy window into eV
 
-    def get_name(self, name):
-        if self.encoded:
-            return name.strip().split("_")[0].strip()
-        return name
 
     @staticmethod
     def add_relative_e(list0):
@@ -211,7 +206,5 @@ class ranking(object):
                     str(float(mol.GetProp("E_rel(eV)")) * ev2kcalpermol),
                 )
                 mol.ClearProp("E_rel(eV)")
-                # Remove _ in the molecule title if it is encoded
-                mol.SetProp("_Name", self.get_name(mol.GetProp("_Name")))
                 f.write(mol)
         return self.out_path

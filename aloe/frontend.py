@@ -13,16 +13,10 @@ from aloe.backend import (
     optimize_conformers,
     rank_conformers,
 )
-from aloe.bdfe_calculation.bdfe_calc import (
-    bdfe_calculator,
-    products_pipeline,
-    write_failed_reactants,
-)
-from aloe.bdfe_calculation.product_generator import generate_products
+
 from aloe.file_utils import (
     batch_calculations,
     combine_files,
-    make_output_name,
     save_chunks,
     update_hardware_settings,
 )
@@ -169,14 +163,14 @@ class aloe:
         if isinstance(self.hardware_settings["gpu_idx"], int):
             self.hardware_settings["gpu_idx"] = [self.hardware_settings["gpu_idx"]]
 
+        print(f'\033[35mHardware settings: {self.hardware_settings}\033[0m')
         # This is the only relevant hardware setting for the pipeline
         # -1 to indicate only CPU calculations
-        self.hardware_settings = (
+        self.gpu_indices = (
             self.hardware_settings["gpu_idx"]
             if self.hardware_settings["use_gpu"]
             else [-1]
         )
-
         # Ensure all required parameters are set before running the pipeline
         return chunks
 
@@ -191,11 +185,12 @@ class aloe:
         chunks = self.prepwork()
 
         output_files = run_auto3D_pipeline(
-            chunks,
-            self.selected_functions,
-            self.user_parameters,
-            self.hardware_settings,
+            chunks = chunks,
+            selected_functions = self.selected_functions,
+            user_parameters = self.user_parameters,
+            gpu_indicies = self.gpu_indices,
         )
+        
 
         if (
             len(self.selected_functions) == 1
@@ -211,65 +206,6 @@ class aloe:
         return combine_files(
             output_files, self.input_file, self.output_dir, output_suffix
         )
-
-    def calculate_bdfe(self):
-        r"""
-        Generates the products from a list of reactants and calulates the change in bond dissociation free energy (BDFE) for each reaction.
-
-        Returns:
-            output_file str: path to the output file containing the BDFE calculations.
-            failed_file str: path to the file containing the failed reactants (if any).
-        """
-
-        reactant_chunks, hardware_settings = self.prepwork()
-        product_chunks = []
-        failed_reactants = []
-
-        for chunk in reactant_chunks:
-            product_chunk, failed = products_pipeline(chunk)
-            product_chunks.append(product_chunk)
-            failed_reactants.extend(failed)
-
-        # run pipeline on both files
-
-        self.add_step(ConformerConfig())
-        self.add_step(OptConfig())
-        self.add_step(RankConfig(k=1))
-        self.add_step(ThermoConfig())
-
-        reactant_files = asyncio.run(
-            run_auto3D_pipeline(
-                reactant_chunks,
-                self.selected_functions,
-                self.user_parameters,
-                hardware_settings,
-            )
-        )
-
-        product_files = asyncio.run(
-            run_auto3D_pipeline(
-                product_chunks,
-                self.selected_functions,
-                self.user_parameters,
-                hardware_settings,
-            )
-        )
-
-        # Calculates BDFEs
-        output_files = []
-        for reactant, product in zip(reactant_files, product_files):
-            output_files.append(bdfe_calculator(reactant, product))
-
-        if self.output_dir is None:
-            self.output_dir = os.path.dirname(self.input_file)
-
-        output_file = combine_files(
-            output_files, self.input_file, self.output_dir, "_bdfe.csv"
-        )
-
-        failed_file = write_failed_reactants(output_file, failed_reactants)
-
-        return output_file, failed_file
 
 
 def run_gen(input_file, **kwargs):

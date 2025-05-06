@@ -86,7 +86,7 @@ def check_input(input_file, expected_input_format):
 
     """
     print("Checking input file...", flush=True)  # Check the input format
-    print("Input file:" + input_file, flush=True)
+    print(f"Input file: {input_file}", flush=True)
     if not input_file.endswith(expected_input_format):
         sys.exit(
             f"Input file must be in {expected_input_format} format. Please check the input file."
@@ -171,7 +171,7 @@ def check_csv_format(input_file):
     return True
 
 
-def update_hardware_settings(hardware_settings):
+def update_hardware_settings(hardware_settings: dict):
     """Helper function to divide jobs based on available memory and update GPU settings."""
     # Allow 42 SMILES strings per GB memory by default for generate_and_optimize_conformers
 

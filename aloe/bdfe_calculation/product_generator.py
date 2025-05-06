@@ -1,9 +1,13 @@
-import csv
-
+import pandas as pd
+from typing import Callable, Optional
 from rdkit import Chem
+from rdkit.Chem import Mol
 from rdkit.Chem import AllChem
+from rdkit.Chem.rdChemReactions import ChemicalReaction
+
 
 from aloe.file_utils import read_csv_dict
+from aloe.isomer_generation.isomer_engine import enumerate_EZ_diimine
 
 # Carbons in central aryl ring numbered 1-6, hetero atoms numbered 7 & 8.
 SUBSTRUCTURES = {
@@ -77,74 +81,126 @@ def translate_key(key):
             return key.replace(red, ox), "reduced"
         if ox in key:
             return key.replace(ox, red), "oxidized"
-
-
-def get_products_from_reactant(smi, reactions):
-    mol = Chem.MolFromSmiles(smi)
-    products = []
-    for key in reactions:
-        if mol.HasSubstructMatch(Chem.MolFromSmarts(SUBSTRUCTURES[key])):
-            rxn = reactions[key]
-            products_smiles = []
-            for i in rxn.RunReactants((mol,)):
-                product = i[0]
-                try:
-                    Chem.SanitizeMol(product)
-                    products_smiles += Chem.MolToSmiles(product)
-                except:
-                    continue
-            products += products_smiles
-    return products
-
-    # you need to figure out the names for the products here
-
-
-def generate_products(input_file, output_file):
+        
+def determine_reaction_from_key(key: str) -> ChemicalReaction:
     r"""
-    Generates products from the input file using the defined substructures and their oxidization/reduction reactions.
+    Determines the reaction to use to generate products from a reactant.
+
+    Args:
+        key (str): The key of the reactant (type of substructure, e.g. "o-diol").
+
+    Returns:
+        reaction (ChemicalReaction): The reaction to use to generate products from a reactant.
+    """
+    other_key, _ = translate_key(key)
+    reaction_smarts = SUBSTRUCTURES[key] + ">>" + SUBSTRUCTURES[other_key]
+    reaction = AllChem.ReactionFromSmarts(reaction_smarts)
+    return reaction
+
+
+def get_products_from_reactant(name: str, smi: str, key: str, reaction: ChemicalReaction):
+    r"""
+    Creates products from a reactant using a reaction.
+    
+    Args:
+        name (str): The name of the reactant.
+        smi (str): The SMILES string of the reactant.
+        key (str): The key of the reactant (type of substructure, e.g. "o-diol").
+        reaction (ChemicalReaction): The reaction to use to create products.
+    
+    Returns:
+        products (list): A list of products.
+        names (list): A list of names for the products.
+    """
+    mol = Chem.MolFromSmiles(smi)
+    product_key, _ = translate_key(key)
+    products = []
+    for i in reaction.RunReactants((mol,)):
+        product = i[0]
+        try:
+            Chem.SanitizeMol(product)
+            products.append(Chem.CanonSmiles(Chem.MolToSmiles(product)))
+        except:
+            continue
+    products = list(set(products))
+    names = ['_'.join([name, key, 'product'+str(i), product_key]) for i in range(len(products))]
+    return products, names
+
+def generate_products(input_file: str, output_file: str, key: str, reaction: ChemicalReaction, post_process_function: Optional[Callable] = None):
+    r"""
+    Generates products from the input file using reactions.
     Arguments:
         input_file (str): Path to the input file containing SMILES strings.
-    Returns:
         output_file (str): Path to the output file containing the generated products.
+        key (str): The key of the reactant (type of substructure, e.g. "o-diol").
+        reaction (ChemicalReaction): The reaction to use to create products.
+        post_process_function (Callable): A function to post-process the products.
+    Returns:
         failed (list): A list of tuples containing the keys and SMILES strings for which no products were generated.
     """
-    oxidization_reactions = {}
-    reduction_reactions = {}
+    reaction.Initialize()
 
-    for key in SUBSTRUCTURES:
-        new_key, oxidation_state = translate_key(key)
-        match oxidation_state:
-            case "oxidized":
-                reduction_reactions[key] = AllChem.ReactionFromSmarts(
-                    f"{SUBSTRUCTURES[key]}>>{SUBSTRUCTURES[new_key]}"
-                )
-            case "reduced":
-                oxidization_reactions[key] = AllChem.ReactionFromSmarts(
-                    f"{SUBSTRUCTURES[key]}>>{SUBSTRUCTURES[new_key]}"
-                )
-
-    for key in oxidization_reactions:
-        oxidization_reactions[key].Initialize()
-    for key in reduction_reactions:
-        reduction_reactions[key].Initialize()
+    products = []
+    names = []
+    failed = []
 
     data = read_csv_dict(input_file)
+    for name, smi in data.items():
+        these_products, these_names = get_products_from_reactant(name=name, smi=smi, key=key, reaction=reaction)
+        if len(these_products) == 0:
+            failed.append((name, smi))
+        else:
+            products.extend(these_products)
+            names.extend(these_names)
+    
+    df = pd.DataFrame({'Name': names, 'SMILES': products})
 
-    no_products = []
-    with open(output_file, "w", newline="") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["Name", "SMILES"])
-        for key, val in data.items():
-            # TODO: figure out which reactions to run
-            products = get_products_from_reactant(val, oxidization_reactions)
-            products.extend(get_products_from_reactant(val, reduction_reactions))
+    if post_process_function is not None:
+        df = post_process_function(df)
 
-            if len(products) == 0:
-                no_products.append((key, val))
-            else:
-                for i, reactions in enumerate(products):
-                    for j, smi in enumerate(reactions):
-                        # TODO: better naming scheme for "reaction", and of specific product name
-                        writer.writerow([f"{key}-reaction{i}-diimine{j}", smi])
+    df.to_csv(output_file, index=False)
 
-    return output_file, no_products
+    return failed
+
+
+def clean_up_diamine(product: Mol) -> str:
+    r"""
+    Cleans up a diamine by removing the hydrogens on the nitrogen atoms.
+    """
+    product_copy = Chem.RWMol(product)
+    to_be_removed = []
+    for atom in product_copy.GetAtoms():
+        if atom.GetSymbol() == 'N' and atom.GetFormalCharge() == 0 and atom.GetNumExplicitHs() == 2:
+            for neighbor in atom.GetNeighbors():
+                if neighbor.GetSymbol() == 'H':
+                    to_be_removed.append(neighbor.GetIdx())
+    for idx in sorted(to_be_removed, reverse=True):
+        product_copy.RemoveAtom(idx)
+    return Chem.CanonSmiles(Chem.MolToSmiles(product_copy.GetMol()))
+
+def diamine_hook(df: pd.DataFrame) -> pd.DataFrame:
+    r"""
+    Cleans up a diamine by removing the hydrogens on the nitrogen atoms.
+    """
+    mols = [Chem.MolFromSmiles(smi) for smi in df['SMILES']]
+    cleaned_smies = [clean_up_diamine(mol) for mol in mols]
+    df['SMILES'] = cleaned_smies
+    return df
+
+
+def diimine_goes_EZ_hook(df: pd.DataFrame) -> pd.DataFrame:
+    r"""
+    Enumerates the EZ isomers of a diimine.
+    """
+    mols = [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in df['SMILES']]
+
+    name_col = df.columns[0] if df.columns[0] != 'SMILES' else df.columns[1]
+    names = df[name_col].values
+
+    new_names, new_smiles = [], []
+    for name, mol in zip(names, mols):
+        list_of_smiles = enumerate_EZ_diimine(mol)
+        new_names.extend([f"{name}-{code}" for code, _ in list_of_smiles])
+        new_smiles.extend([smi for _, smi in list_of_smiles])
+    df = pd.DataFrame({'Name': new_names, 'SMILES': new_smiles})
+    return df
