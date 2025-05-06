@@ -71,7 +71,7 @@ class RankConfig:
     window: bool, whether to output structures with energies within x kcal/mol from the lowest energy conformer, defaults to None.
     threshold: float, RMSD threshold for considering conformers as duplicates, defaults to 0.3.
     """
-    k: int = None
+    k: int = 1
     window: bool = None
     threshold: float = 0.3
 
@@ -163,7 +163,6 @@ class aloe:
         if isinstance(self.hardware_settings["gpu_idx"], int):
             self.hardware_settings["gpu_idx"] = [self.hardware_settings["gpu_idx"]]
 
-        print(f'\033[35mHardware settings: {self.hardware_settings}\033[0m')
         # This is the only relevant hardware setting for the pipeline
         # -1 to indicate only CPU calculations
         self.gpu_indices = (
@@ -250,10 +249,10 @@ def run_pipeline(input_file, pipeline, gpu_index):
             if step.func.__name__ == "run_opt" or step.func.__name__ == "run_thermo":
                 step = functools.partial(step, gpu_idx=gpu_index)
 
-            try:
-                current_file = step(input_file=current_file)
-            except Exception as e:
-                print(f"Error processing step {step.func.__name__}: {e}", flush=True)
+            # try:
+            current_file = step(input_file=current_file)
+            # except Exception as e:
+                # print(f"Error processing step {step.func.__name__}: {e}", flush=True)
 
     return current_file
 

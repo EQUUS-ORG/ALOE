@@ -208,7 +208,6 @@ def rank_conformers(
         threshold=threshold,
         k=k,
         window=window,
-        encoded=True,
     )
 
     output_file = rank_engine.run()

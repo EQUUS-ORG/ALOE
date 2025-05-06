@@ -23,11 +23,9 @@ class ranking(object):
     """
 
     def __init__(
-        self, input_path, out_path, threshold, k=None, window=None
+        self, input_path, out_path, threshold, k=1, window=None
     ):
         r"""
-        Args:
-            encoded: Whether the molecule names are encoded. An encoded name would look like: 0_1_2. We want 0 instead.
         """
         self.input_path = input_path
         self.out_path = out_path
@@ -95,16 +93,12 @@ class ranking(object):
         )
         out_mols = filter_unique(list(group["mol"]), threshold=self.threshold, k=k)
 
-        if len(out_mols) == 0:
-            name = names[0].split("_")[0].strip()
-            print(f"No structure converged for {name}.", flush=True)
-        else:
-            # Adding relative energies
-            ref_energy = float(out_mols[0].GetProp("E_tot"))
-            for mol in out_mols:
-                my_energy = float(mol.GetProp("E_tot"))
-                rel_energy = my_energy - ref_energy
-                mol.SetProp("E_rel(eV)", str(rel_energy))
+        # Adding relative energies
+        ref_energy = float(out_mols[0].GetProp("E_tot"))
+        for mol in out_mols:
+            my_energy = float(mol.GetProp("E_tot"))
+            rel_energy = my_energy - ref_energy
+            mol.SetProp("E_rel(eV)", str(rel_energy))
         return out_mols
 
     def top_window_df(self, df_group: pd.DataFrame, window: float) -> pd.DataFrame:
@@ -138,7 +132,7 @@ class ranking(object):
         out_mols = []
 
         if len(out_mols_raw) == 0:
-            name = self.get_name(group.iloc[0]["mol"].GetProp("_Name"))
+            name = group.iloc[0]["mol"].GetProp("_Name")
             print(f"No structure converged for {name}.", flush=True)
         else:
             ref_energy = group["energy"].min()
@@ -166,11 +160,12 @@ class ranking(object):
                     and check_connectivity(mol)
                 ):  # Verify convergence and correct connectivity
                     mols.append(mol)
-                    names.append(self.get_name(mol.GetProp("_Name")))
+                    names.append(mol.GetProp("_Name"))
                     energies.append(float(mol.GetProp("E_tot")))
             except:
                 pass
 
+        print('HUGO TATTA',names, energies, mols)
         df = pd.DataFrame({"name": names, "energy": energies, "mol": mols})
 
         df2 = df.groupby("name")

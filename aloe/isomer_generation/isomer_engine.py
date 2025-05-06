@@ -1,5 +1,4 @@
 import csv
-import pdb
 from rdkit import Chem
 
 Chem.SetUseLegacyStereoPerception(False)
