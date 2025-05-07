@@ -549,11 +549,17 @@ def combine_files(files, input_file, output_dir, output_suffix="_out.sdf"):
     suffix, output_type = output_suffix.split(".")
     output_type = "." + output_type
     basename = os.path.basename(input_file).split(".")[0]
-    path_combined = os.path.join(output_dir, f"{basename}{suffix}{output_type}")
-    with open(path_combined, "w+") as f:
+    unique_filename = _get_unique_filename(
+        output_dir,
+        f"{basename}{suffix}",
+        output_type
+    )
+    output_path = os.path.join(output_dir, unique_filename)
+    with open(output_path, "w+") as f:
         for line in data:
             f.write(line)
-    return path_combined
+
+    return output_path
 
 
 def _print_timing(start, end):
@@ -568,3 +574,14 @@ def _print_timing(start, end):
             f"Program running time: {running_time_h} hour(s) and {remaining_minutes} minute(s)",
             flush=True,
         )
+
+
+def _get_unique_filename(output_dir: str, base_filename: str, ext: str) -> str:
+    """If a file named base_filename exists, add a number after."""
+    n = 1
+    unique_filename = f'{base_filename}{ext}'
+    while os.path.exists(f'{os.path.join(output_dir, unique_filename)}'):
+        unique_filename = base_filename + f'_{n}{ext}'
+        n += 1
+
+    return unique_filename

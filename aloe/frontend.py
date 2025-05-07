@@ -189,11 +189,10 @@ class aloe:
             user_parameters = self.user_parameters,
             gpu_indicies = self.gpu_indices,
         )
-        
 
         if (
             len(self.selected_functions) == 1
-            and self.selected_functions[0] == "gen_isomer"
+            and self.selected_functions[0] == "StereoIsoConfig"
         ):
             output_suffix = "_out.csv"
         else:
