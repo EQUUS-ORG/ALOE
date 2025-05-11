@@ -22,11 +22,8 @@ class ranking(object):
         None
     """
 
-    def __init__(
-        self, input_path, out_path, threshold, k=1, window=None
-    ):
-        r"""
-        """
+    def __init__(self, input_path, out_path, threshold, k=1, window=None):
+        r""" """
         self.input_path = input_path
         self.out_path = out_path
         self.threshold = threshold
@@ -55,7 +52,6 @@ class ranking(object):
         if window is not None:
             assert window >= 0
             self.window_eV = window / ev2kcalpermol  # convert energy window into eV
-
 
     @staticmethod
     def add_relative_e(list0):
@@ -165,7 +161,7 @@ class ranking(object):
             except:
                 pass
 
-        print('HUGO TATTA',names, energies, mols)
+        print("HUGO TATTA", names, energies, mols)
         df = pd.DataFrame({"name": names, "energy": energies, "mol": mols})
 
         df2 = df.groupby("name")

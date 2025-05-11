@@ -1,10 +1,9 @@
-import pandas as pd
 from typing import Callable, Optional
-from rdkit import Chem
-from rdkit.Chem import Mol
-from rdkit.Chem import AllChem
-from rdkit.Chem.rdChemReactions import ChemicalReaction
 
+import pandas as pd
+from rdkit import Chem
+from rdkit.Chem import AllChem, Mol
+from rdkit.Chem.rdChemReactions import ChemicalReaction
 
 from aloe.file_utils import read_csv_dict
 from aloe.isomer_generation.isomer_engine import enumerate_EZ_diimine
@@ -81,7 +80,8 @@ def translate_key(key):
             return key.replace(red, ox), "reduced"
         if ox in key:
             return key.replace(ox, red), "oxidized"
-        
+
+
 def determine_reaction_from_key(key: str) -> ChemicalReaction:
     r"""
     Determines the reaction to use to generate products from a reactant.
@@ -98,16 +98,18 @@ def determine_reaction_from_key(key: str) -> ChemicalReaction:
     return reaction
 
 
-def get_products_from_reactant(name: str, smi: str, key: str, reaction: ChemicalReaction):
+def get_products_from_reactant(
+    name: str, smi: str, key: str, reaction: ChemicalReaction
+):
     r"""
     Creates products from a reactant using a reaction.
-    
+
     Args:
         name (str): The name of the reactant.
         smi (str): The SMILES string of the reactant.
         key (str): The key of the reactant (type of substructure, e.g. "o-diol").
         reaction (ChemicalReaction): The reaction to use to create products.
-    
+
     Returns:
         products (list): A list of products.
         names (list): A list of names for the products.
@@ -123,10 +125,20 @@ def get_products_from_reactant(name: str, smi: str, key: str, reaction: Chemical
         except:
             continue
     products = list(set(products))
-    names = ['_'.join([name, key, 'product'+str(i), product_key]) for i in range(len(products))]
+    names = [
+        "_".join([name, key, "product" + str(i), product_key])
+        for i in range(len(products))
+    ]
     return products, names
 
-def generate_products(input_file: str, output_file: str, key: str, reaction: ChemicalReaction, post_process_function: Optional[Callable] = None):
+
+def generate_products(
+    input_file: str,
+    output_file: str,
+    key: str,
+    reaction: ChemicalReaction,
+    post_process_function: Optional[Callable] = None,
+):
     r"""
     Generates products from the input file using reactions.
     Arguments:
@@ -146,14 +158,16 @@ def generate_products(input_file: str, output_file: str, key: str, reaction: Che
 
     data = read_csv_dict(input_file)
     for name, smi in data.items():
-        these_products, these_names = get_products_from_reactant(name=name, smi=smi, key=key, reaction=reaction)
+        these_products, these_names = get_products_from_reactant(
+            name=name, smi=smi, key=key, reaction=reaction
+        )
         if len(these_products) == 0:
             failed.append((name, smi))
         else:
             products.extend(these_products)
             names.extend(these_names)
-    
-    df = pd.DataFrame({'Name': names, 'SMILES': products})
+
+    df = pd.DataFrame({"Name": names, "SMILES": products})
 
     if post_process_function is not None:
         df = post_process_function(df)
@@ -170,21 +184,26 @@ def clean_up_diamine(product: Mol) -> str:
     product_copy = Chem.RWMol(product)
     to_be_removed = []
     for atom in product_copy.GetAtoms():
-        if atom.GetSymbol() == 'N' and atom.GetFormalCharge() == 0 and atom.GetNumExplicitHs() == 2:
+        if (
+            atom.GetSymbol() == "N"
+            and atom.GetFormalCharge() == 0
+            and atom.GetNumExplicitHs() == 2
+        ):
             for neighbor in atom.GetNeighbors():
-                if neighbor.GetSymbol() == 'H':
+                if neighbor.GetSymbol() == "H":
                     to_be_removed.append(neighbor.GetIdx())
     for idx in sorted(to_be_removed, reverse=True):
         product_copy.RemoveAtom(idx)
     return Chem.CanonSmiles(Chem.MolToSmiles(product_copy.GetMol()))
 
+
 def diamine_hook(df: pd.DataFrame) -> pd.DataFrame:
     r"""
     Cleans up a diamine by removing the hydrogens on the nitrogen atoms.
     """
-    mols = [Chem.MolFromSmiles(smi) for smi in df['SMILES']]
+    mols = [Chem.MolFromSmiles(smi) for smi in df["SMILES"]]
     cleaned_smies = [clean_up_diamine(mol) for mol in mols]
-    df['SMILES'] = cleaned_smies
+    df["SMILES"] = cleaned_smies
     return df
 
 
@@ -192,9 +211,9 @@ def diimine_goes_EZ_hook(df: pd.DataFrame) -> pd.DataFrame:
     r"""
     Enumerates the EZ isomers of a diimine.
     """
-    mols = [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in df['SMILES']]
+    mols = [Chem.AddHs(Chem.MolFromSmiles(smi)) for smi in df["SMILES"]]
 
-    name_col = df.columns[0] if df.columns[0] != 'SMILES' else df.columns[1]
+    name_col = df.columns[0] if df.columns[0] != "SMILES" else df.columns[1]
     names = df[name_col].values
 
     new_names, new_smiles = [], []
@@ -202,5 +221,5 @@ def diimine_goes_EZ_hook(df: pd.DataFrame) -> pd.DataFrame:
         list_of_smiles = enumerate_EZ_diimine(mol)
         new_names.extend([f"{name}-{code}" for code, _ in list_of_smiles])
         new_smiles.extend([smi for _, smi in list_of_smiles])
-    df = pd.DataFrame({'Name': new_names, 'SMILES': new_smiles})
+    df = pd.DataFrame({"Name": new_names, "SMILES": new_smiles})
     return df

@@ -12,7 +12,6 @@ from aloe.backend import (
     optimize_conformers,
     rank_conformers,
 )
-
 from aloe.file_utils import (
     batch_calculations,
     combine_files,
@@ -183,10 +182,10 @@ class aloe:
         chunks = self.prepwork()
 
         output_files = run_auto3D_pipeline(
-            chunks = chunks,
-            selected_functions = self.selected_functions,
-            user_parameters = self.user_parameters,
-            gpu_indicies = self.gpu_indices,
+            chunks=chunks,
+            selected_functions=self.selected_functions,
+            user_parameters=self.user_parameters,
+            gpu_indicies=self.gpu_indices,
         )
 
         if (
@@ -250,7 +249,7 @@ def run_pipeline(input_file, pipeline, gpu_index):
             # try:
             current_file = step(input_file=current_file)
             # except Exception as e:
-                # print(f"Error processing step {step.func.__name__}: {e}", flush=True)
+            # print(f"Error processing step {step.func.__name__}: {e}", flush=True)
 
     return current_file
 
