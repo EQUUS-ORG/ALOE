@@ -1,4 +1,5 @@
 import csv
+
 from rdkit import Chem
 
 Chem.SetUseLegacyStereoPerception(False)
@@ -113,6 +114,7 @@ class rd_enumerate_isomer(object):
 
 diimine_pattern = Chem.MolFromSmarts("N=C-C=N")
 
+
 def EZ_helper(mol, bond_idx):
     """
     Assigns E/Z stereochemistry to the molecule.
@@ -144,6 +146,7 @@ def EZ_helper(mol, bond_idx):
                 )
     return mol
 
+
 def enumerate_EZ_diimine(mol: Mol) -> list[tuple[str, str]]:
     """
     (E, E), (E, Z), (Z,E), (Z, Z)
@@ -152,9 +155,10 @@ def enumerate_EZ_diimine(mol: Mol) -> list[tuple[str, str]]:
         list[tuple[str, str]]: A list of tuples of the form (code, SMILES).
     """
 
-
     try:
-        assert len(mol.GetSubstructMatches(diimine_pattern)) == 1, "More than one diimine found in the molecule"
+        assert (
+            len(mol.GetSubstructMatches(diimine_pattern)) == 1
+        ), "More than one diimine found in the molecule"
         match = mol.GetSubstructMatches(diimine_pattern)[0]
         N1, C1 = match[0], match[1]
         N2, C2 = match[-1], match[-2]
@@ -192,6 +196,6 @@ def enumerate_EZ_diimine(mol: Mol) -> list[tuple[str, str]]:
         list_of_smiles.append(("ZZ", Chem.CanonSmiles(Chem.MolToSmiles(mol_copy))))
 
         return list_of_smiles
-    
+
     except:
         return []

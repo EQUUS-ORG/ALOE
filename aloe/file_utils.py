@@ -85,8 +85,9 @@ def check_input(input_file, expected_input_format):
         This function checks the format of the input file, the properties for
 
     """
-    print("Checking input file...", flush=True)  # Check the input format
-    print(f"Input file: {input_file}", flush=True)
+    print(
+        f"Checking intermediate file {input_file}", flush=True
+    )  # Check the input format
     if not input_file.endswith(expected_input_format):
         sys.exit(
             f"Input file must be in {expected_input_format} format. Please check the input file."
@@ -355,27 +356,30 @@ def save_chunks(input_file, t, do_batch, batch_info):
     basename = os.path.basename(input_file).split(".")[0].strip()
     input_format = input_file.split(".")[-1].strip()
     int_dir = os.path.join(os.path.dirname(input_file), basename + "_intermediates")
-    
+
     # Handle case where directory already exists
     if os.path.exists(int_dir):
         # Find all existing numbered directories
         parent_dir = os.path.dirname(int_dir)
         base_name = os.path.basename(int_dir)
-        existing_dirs = [d for d in os.listdir(parent_dir) 
-                        if d.startswith(base_name) and os.path.isdir(os.path.join(parent_dir, d))]
-        
+        existing_dirs = [
+            d
+            for d in os.listdir(parent_dir)
+            if d.startswith(base_name) and os.path.isdir(os.path.join(parent_dir, d))
+        ]
+
         # Extract numbers from existing directories
         numbers = [0]  # Start with 0 in case no numbered directories exist
         for d in existing_dirs:
             try:
-                num = int(d.split('_')[-1])
+                num = int(d.split("_")[-1])
                 numbers.append(num)
             except ValueError:
                 continue
-        
+
         # Use the next available number
         int_dir = f"{int_dir}_{max(numbers) + 1}"
-    
+
     os.mkdir(int_dir)
 
     if do_batch:
@@ -525,8 +529,10 @@ def save_chunks(input_file, t, do_batch, batch_info):
                 flush=True,
             )
 
-    print(f"The available memory is {t} GB.", flush=True)
-    print(f"The task will be divided into {len(chunked_files)} job(s).", flush=True)
+    print(
+        f"The available memory is {t} GB. The task will be divided into {len(chunked_files)} job(s).",
+        flush=True,
+    )
 
     return chunked_files
 
@@ -550,16 +556,14 @@ def combine_files(files, input_file, output_dir, output_suffix="_out.sdf"):
     output_type = "." + output_type
     basename = os.path.basename(input_file).split(".")[0]
     unique_filename = _get_unique_filename(
-        output_dir,
-        f"{basename}{suffix}",
-        output_type
+        output_dir, f"{basename}{suffix}", output_type
     )
     output_path = os.path.join(output_dir, unique_filename)
     with open(output_path, "w+") as f:
-        
-        if(input_file.endswith(".csv")):
+
+        if input_file.endswith(".csv"):
             f.write("Name,SMILES\n")
-        
+
         for line in data:
             if ("Name,SMILES") not in line:
                 f.write(line)
@@ -584,9 +588,9 @@ def _print_timing(start, end):
 def _get_unique_filename(output_dir: str, base_filename: str, ext: str) -> str:
     """If a file named base_filename exists, add a number after."""
     n = 1
-    unique_filename = f'{base_filename}{ext}'
-    while os.path.exists(f'{os.path.join(output_dir, unique_filename)}'):
-        unique_filename = base_filename + f'_{n}{ext}'
+    unique_filename = f"{base_filename}{ext}"
+    while os.path.exists(f"{os.path.join(output_dir, unique_filename)}"):
+        unique_filename = base_filename + f"_{n}{ext}"
         n += 1
 
     return unique_filename

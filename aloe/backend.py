@@ -37,7 +37,8 @@ def generate_stereoisomers(
 
     check_input(input_file, io_file_type)
     output_file = make_output_name(input_file, "isomers", io_file_type)
-    print("Generating stereoisomers...", flush=True)
+    print("\033[33m" + "Generating stereoisomers...", flush=True)
+    print("\033[39m")  # Reset to default color
 
     engine = rd_enumerate_isomer(
         csv=input_file,
@@ -48,7 +49,8 @@ def generate_stereoisomers(
     )
 
     output_file = engine.run()
-    print("Finished generating stereoisomers.", flush=True)
+    print("\033[32m" + "Finished generating stereoisomers.", flush=True)
+    print("\033[39m")  # Reset to default color
     return output_file
 
 
@@ -76,7 +78,8 @@ def embed_conformers(
 
     check_input(input_file, input_file_type)
     output_file = make_output_name(input_file, "embedded", output_file_type)
-    print("Embeding conformers...", flush=True)
+    print("\033[33m" + "Embeding conformers...", flush=True)
+    print("\033[39m")  # Reset to default color
 
     # Writing to output path
     with Chem.SDWriter(output_file) as writer:
@@ -95,7 +98,8 @@ def embed_conformers(
                     mol.SetProp("_Name", name)
                     writer.write(mol, confId=i)
 
-    print("Finished embedding conformers.", flush=True)
+    print("\033[32m" + "Finished embedding conformers.", flush=True)
+    print("\033[39m")  # Reset to default color
 
     return output_file
 
@@ -137,7 +141,8 @@ def optimize_conformers(
     check_input(input_file, io_file_type)
     device = check_device(use_gpu, gpu_idx)
     check_model(optimizing_engine, input_file)
-    print("Optimizing Conformers...", flush=True)
+    print("\033[33m" + "Optimizing Conformers...", flush=True)
+    print("\033[39m")  # Reset to default color
 
     if int(opt_steps) < 10:
         sys.exit(
@@ -167,7 +172,8 @@ def optimize_conformers(
     optimizer.run()
 
     end = time.time()
-    print("Finished optimizing conformers.", flush=True)
+    print("\033[32m" + "Finished optimizing conformers.", flush=True)
+    print("\033[39m")  # Reset to default color
     _print_timing(start, end)
 
     return output_file
@@ -194,7 +200,8 @@ def rank_conformers(
     io_file_type = ".sdf"
 
     check_input(input_file, io_file_type)
-    print("Ranking Conformers...", flush=True)
+    print("\033[33m" + "Ranking Conformers...", flush=True)
+    print("\033[39m")  # Reset to default color
 
     if k is None and window is None:
         sys.exit("Either k or window must be provided for ranking conformers. ")
@@ -211,7 +218,8 @@ def rank_conformers(
     )
 
     output_file = rank_engine.run()
-    print("Finished ranking conformers.", flush=True)
+    print("\033[32m" + "Finished ranking conformers.", flush=True)
+    print("\033[39m")  # Reset to default color
     return output_file
 
 
@@ -248,7 +256,8 @@ def calculate_thermo(
     check_input(input_file, io_file_type)
     check_device(use_gpu, gpu_idx)
     check_model(model_name, input_file)
-    print("Thermo Calculations...", flush=True)
+    print("\033[33m" + "Thermo Calculations...", flush=True)
+    print("\033[39m")  # Reset to default color
 
     # Output path
     output_file = make_output_name(input_file, "thermo", io_file_type)
@@ -262,5 +271,6 @@ def calculate_thermo(
         opt_tol=opt_tol,
         opt_steps=opt_steps,
     )
-    print("Finished thermo calculations.", flush=True)
+    print("\033[32m" + "Finished thermo calculations.", flush=True)
+    print("\033[39m")  # Reset to default color
     return output_file
