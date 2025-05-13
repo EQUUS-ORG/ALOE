@@ -233,11 +233,12 @@ def batch_calculations(input_file):
     if file_type == "sdf":
         suppl = Chem.SDMolSupplier(input_file, removeHs=False)
     elif file_type == "csv":
-        _, smiles = read_csv(input_file)
+        names, smiles = read_csv(input_file)
         suppl = []
-        for smile in smiles:
+        for name, smile in zip(names, smiles):
             if smile is not None:
                 mol = Chem.AddHs(Chem.MolFromSmiles(smile))
+                mol.SetProp("_Name", name)
                 suppl.append(mol)
 
     print(f"Input file has {len(suppl)} molecules.", flush=True)
@@ -254,8 +255,8 @@ def batch_calculations(input_file):
             if num_atoms not in molecule_dict:
                 molecule_dict[num_atoms] = {}
 
-            # Want molecules of the same type to stay together
-            identifier = Chem.MolToSmiles(mol, canonical=True)
+            # Want molecules of the same name to stay together
+            identifier = mol.GetProp("_Name")
 
             if identifier not in molecule_dict[num_atoms]:
                 molecule_dict[num_atoms][identifier] = []
