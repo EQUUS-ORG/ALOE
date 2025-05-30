@@ -161,7 +161,6 @@ class ranking(object):
             except:
                 pass
 
-        print("HUGO TATTA", names, energies, mols)
         df = pd.DataFrame({"name": names, "energy": energies, "mol": mols})
 
         df2 = df.groupby("name")
