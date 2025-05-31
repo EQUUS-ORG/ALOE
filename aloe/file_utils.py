@@ -562,7 +562,7 @@ def combine_files(files, input_file, output_dir, output_suffix="_out.sdf"):
     output_path = os.path.join(output_dir, unique_filename)
     with open(output_path, "w+") as f:
 
-        if input_file.endswith(".csv"):
+        if input_file.endswith(".csv") and unique_filename.endswith(".csv"):
             f.write("Name,SMILES\n")
 
         for line in data:
