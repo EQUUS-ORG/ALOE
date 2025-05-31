@@ -18,9 +18,9 @@ from rdkit import Chem
 from rdkit.Chem import rdmolops
 from tqdm.auto import tqdm
 
-from aloe.batch_opt.ANI2xt_no_rep import ANI2xt
-from aloe.batch_opt.batchopt import EnForce_ANI
-from aloe.model_validation import hartree2ev
+from ..batch_opt.ANI2xt_no_rep import ANI2xt
+from ..batch_opt.batchopt import EnForce_ANI
+from ..model_validation import hartree2ev
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
@@ -166,7 +166,8 @@ def vib_hessian(
     model_name="AIMNET",
 ):
     """return a VibrationsData object
-    model: ANI2xt or AIMNet2 or ANI2x or userNNP that can be used to calculate Hessian"""
+    model: ANI2xt or AIMNet2 or ANI2x or userNNP that can be used to calculate Hessian
+    """
     # get the ASE atoms object
     coord = mol.GetConformer().GetPositions()
     species = [a.GetSymbol() for a in mol.GetAtoms()]
@@ -218,7 +219,8 @@ def do_mol_thermo(
     model_name="AIMNET-lite",
 ):
     """For a RDKit mol object, calculate its thermochemistry properties.
-    model: ANI2xt or AIMNet2 or ANI2x or userNNP that can be used to calculate Hessian"""
+    model: ANI2xt or AIMNet2 or ANI2x or userNNP that can be used to calculate Hessian
+    """
     vib = vib_hessian(mol, atoms.calc, model, device, model_name=model_name)
     vib_e = vib.get_energies()
     e = atoms.get_potential_energy()

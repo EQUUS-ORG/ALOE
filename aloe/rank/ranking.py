@@ -4,8 +4,8 @@ import pandas as pd
 from rdkit import Chem
 from tqdm.auto import tqdm
 
-from aloe.model_validation import ev2kcalpermol, hartree2ev
-from aloe.rank.rank_utils import check_connectivity, filter_unique
+from ..model_validation import ev2kcalpermol, hartree2ev
+from ..rank.rank_utils import check_connectivity, filter_unique
 
 
 class ranking(object):

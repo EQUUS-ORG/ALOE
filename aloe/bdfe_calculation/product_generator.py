@@ -5,8 +5,8 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Mol
 from rdkit.Chem.rdChemReactions import ChemicalReaction
 
-from aloe.file_utils import read_csv_dict
-from aloe.isomer_generation.isomer_engine import enumerate_EZ_diimine
+from ..file_utils import read_csv_dict
+from ..isomer_generation.isomer_engine import enumerate_EZ_diimine
 
 # Carbons in central aryl ring numbered 1-6, hetero atoms numbered 7 & 8.
 SUBSTRUCTURES = {

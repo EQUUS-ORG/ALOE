@@ -10,7 +10,7 @@ from rdkit.Chem.EnumerateStereoisomers import (
 )
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
-from aloe.file_utils import read_csv_dict
+from ..file_utils import read_csv_dict
 
 
 class rd_enumerate_isomer(object):

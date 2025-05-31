@@ -1,14 +1,14 @@
 import pandas as pd
 from rdkit import Chem
 
-from aloe.bdfe_calculation.product_generator import (
+from ..bdfe_calculation.product_generator import (
     determine_reaction_from_key,
     diamine_hook,
     diimine_goes_EZ_hook,
     generate_products,
 )
-from aloe.file_utils import make_output_name
-from aloe.frontend import ConformerConfig, OptConfig, RankConfig, ThermoConfig
+from ..file_utils import make_output_name
+from ..frontend import ConformerConfig, OptConfig, RankConfig, ThermoConfig
 
 HARTREE_TO_KCAL = 627.5096080305927
 G_H = -0.51016097
@@ -34,6 +34,34 @@ def get_G(file: str) -> pd.DataFrame:
             df.loc[len(df)] = [name, smi, G]
 
     return df
+
+def get_lowest_G(file: str) -> pd.DataFrame:
+    r"""
+    Get the lowest free energy of each isomer from an .sdf file.
+
+    Args:
+        file (str): Path to the .sdf file.
+
+    Returns:
+        pd.DataFrame: A dataframe containing the lowest free energy.
+    """
+
+    df = pd.DataFrame(columns=["Name", "G_hartree"])
+    
+    with Chem.SDMolSupplier(file) as supplier:
+        for mol in supplier:
+            name = mol.GetProp("_Name").split("-isomer")[0] # Get original name without isomer suffix
+            G = float(mol.GetProp("G_hartree"))
+            if name in df["Name"].values:
+                # If name already exists, check if the current G is lower
+                existing_G = df.loc[df["Name"] == name, "G_hartree"].values[0]
+                if G < existing_G:
+                    df.loc[df["Name"] == name, "G_hartree"] = G
+            else:
+                # If name does not exist, add it
+                df.loc[len(df)] = [name, G]
+            
+    
 
 
 def get_BDFE(

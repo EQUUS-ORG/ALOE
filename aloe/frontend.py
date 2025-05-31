@@ -5,20 +5,20 @@ from dataclasses import asdict, dataclass
 from queue import Queue
 from typing import List
 
-from aloe.backend import (
+from .backend import (
     calculate_thermo,
     embed_conformers,
     generate_stereoisomers,
     optimize_conformers,
     rank_conformers,
 )
-from aloe.file_utils import (
+from .file_utils import (
     batch_calculations,
     combine_files,
     save_chunks,
     update_hardware_settings,
 )
-from aloe.model_validation import check_shared_parameters
+from .model_validation import check_shared_parameters
 
 
 @dataclass
@@ -28,6 +28,7 @@ class StereoIsoConfig:
     onlyUnassigned: bool, whether to only generate unassigned stereoisomers, default False
     unique: bool, whether to generate unique stereoisomers, default True
     """
+
     enumerate_tautomers: bool = False
     onlyUnassigned: bool = True
     unique: bool = True
@@ -40,6 +41,7 @@ class ConformerConfig:
     mpi_np: int, number of CPU cores for isomer generation, default 4
     threshold: float RMSD threshold for considering conformers as duplications, default 0.3
     """
+
     max_conformers: int = None
     mpi_np: int = 4
     threshold: float = 0.3
@@ -54,6 +56,7 @@ class OptConfig:
     opt_steps: int, maximum optimization steps per structure, defaults to 5000.
     convergence_threshold: float, Maximum force threshold for convergence, defaults to 0.003.
     """
+
     optimizing_engine: str = "AIMNET-lite"
     patience: int = 1000
     opt_steps: int = 5000
@@ -69,6 +72,7 @@ class RankConfig:
     window: bool, whether to output structures with energies within x kcal/mol from the lowest energy conformer, defaults to None.
     threshold: float, RMSD threshold for considering conformers as duplicates, defaults to 0.3.
     """
+
     k: int = 1
     window: bool = None
     threshold: float = 0.3
@@ -83,6 +87,7 @@ class ThermoConfig:
     opt_tol: float, Convergence_threshold for geometry optimization, defaults to 0.0002.
     opt_steps: int, Maximum optimization steps per structure, defaults to 5000.
     """
+
     model_name: str = "AIMNET-lite"
     mol_info_func: callable = None
     opt_tol: float = 0.0002
