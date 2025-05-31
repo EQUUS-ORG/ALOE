@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torchani
 
-from aloe.model_validation import hartree2ev
+from ..model_validation import hartree2ev
 
 torch.manual_seed(0)
 torch.backends.cuda.matmul.allow_tf32 = False

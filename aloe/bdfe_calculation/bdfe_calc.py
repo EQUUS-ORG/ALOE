@@ -1,14 +1,14 @@
 import pandas as pd
 from rdkit import Chem
 
-from aloe.bdfe_calculation.product_generator import (
+from ..bdfe_calculation.product_generator import (
     determine_reaction_from_key,
     diamine_hook,
     diimine_goes_EZ_hook,
     generate_products,
 )
-from aloe.file_utils import make_output_name
-from aloe.frontend import ConformerConfig, OptConfig, RankConfig, ThermoConfig
+from ..file_utils import make_output_name
+from ..frontend import ConformerConfig, OptConfig, RankConfig, ThermoConfig
 
 HARTREE_TO_KCAL = 627.5096080305927
 G_H = -0.51016097

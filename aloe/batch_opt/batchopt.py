@@ -21,7 +21,7 @@ except:
 
 from tqdm.auto import tqdm
 
-from aloe.model_validation import hartree2ev
+from ..model_validation import hartree2ev
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
@@ -259,7 +259,8 @@ def n_steps(
     Argument:
         state: an dictionary containing all information about this optimization step
         n: optimization step
-        patience: optimization stops for a conformer if the force does not decrease for a continuous patience steps"""
+        patience: optimization stops for a conformer if the force does not decrease for a continuous patience steps
+    """
     # t0 = perf_counter()
     numbers = state["numbers"]
     charges = state["charges"]
@@ -338,9 +339,9 @@ def n_steps(
         state["coord"][
             not_converged
         ] = coord  # Update coordinates for conformers that are optimized in this iteration
-        smallest_fmax0[
-            not_converged
-        ] = smallest_fmax  # update smalles_fmax for each conformer
+        smallest_fmax0[not_converged] = (
+            smallest_fmax  # update smalles_fmax for each conformer
+        )
         state["oscillating_count"][
             not_converged
         ] = oscillating_count  # update counts for continuous no reduction in fmax

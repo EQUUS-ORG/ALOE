@@ -4,8 +4,7 @@ from typing import Optional
 import pandas as pd
 from rdkit import Chem
 
-from aloe.backend import main
-from aloe.model_validation import hartree2kcalpermol
+from ..model_validation import hartree2kcalpermol
 
 
 def select_tautomers(
@@ -74,18 +73,3 @@ def select_tautomers(
     print("The stable tautomers are stored in: %s" % output_path, flush=True)
     return output_path
 
-
-def get_stable_tautomers(
-    args: dict, tauto_k: Optional[int] = None, tauto_window: Optional[float] = None
-) -> str:
-    """
-    args: the `options` function output, it's used for generating low-energy conformers
-    tauto_k: keep the top-k tautomers
-    tauto_window: keep the tautomers whose energies are within `window` kcal/mol
-
-    Output:
-    an SDF file storing the stable tautomers from the input SMILES file
-    """
-    out = main(args)
-    out_tautomer = select_tautomers(out, tauto_k, tauto_window)
-    return out_tautomer
