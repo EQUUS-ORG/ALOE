@@ -1,0 +1,312 @@
+import os
+import sys
+import time
+from typing import Any, Callable, Dict, Optional
+
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
+from .ASE import thermo
+from .batch_opt.batchopt import optimizing
+from .embed import embedding
+from .file_utils import _print_timing, check_input, make_output_name, read_csv
+from .isomer_generation.isomer_engine import rd_enumerate_isomer
+from .model_validation import check_device, check_model
+from .rank.ranking import ranking
+
+max_conformers_per_GB_memory = 8192
+CPU_WORKERS_DEFAULT = 4
+
+
+def _resolve_hardware_settings(hs: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    hs = dict(hs or {})
+    hs.setdefault("cpu_workers", CPU_WORKERS_DEFAULT)
+    return hs
+
+
+def generate_stereoisomers(
+    input_file: str,
+    enumerate_tautomers: Optional[bool] = False,
+    onlyUnassigned: Optional[bool] = True,
+    unique: Optional[bool] = True,
+) -> str:
+    r"""
+    Takes in a csv file with SMILES strings and generates stereoisomers for each molecule in an output csv file.
+    Args:
+        input_file (str): path to the input csv file containing the SMILES strings.
+        enumerate_tautomers (bool, optional): Whether to enumerate tautomers for input. Defaults to False.
+        onlyUnassigned (bool, optional): Whether to enumerate only unassigned tautomers. Defaults to True.
+        unique (bool, optional): Whether to enumerate unique tautomers. Defaults to True.
+    Returns:
+        output_file: path to the output sdf file containing the generated stereoisomers.
+    """
+
+    io_file_type = ".csv"
+
+    check_input(input_file, io_file_type)
+    output_file = make_output_name(input_file, "isomers", io_file_type)
+    print("\033[33m" + "Generating stereoisomers...", flush=True)
+    print("\033[39m")  # Reset to default color
+
+    engine = rd_enumerate_isomer(
+        csv=input_file,
+        enumerated_csv=output_file,
+        enumerate_tauts=enumerate_tautomers,
+        onlyUnassigned=onlyUnassigned,
+        unique=unique,
+    )
+
+    output_file = engine.run()
+    print("\033[32m" + "Finished generating stereoisomers.", flush=True)
+    print("\033[39m")  # Reset to default color
+    return output_file
+
+
+def embed_conformers(
+    input_file: str,
+    max_conformers: Optional[int] = None,
+    threshold: Optional[float] = 0.3,
+    hardware_settings: Optional[Dict[str, Any]] = None,
+) -> str:
+    r"""
+    Takes in a csv file with SMILES strings and embeds conformers for each molecule in an output sdf file.
+    Args:
+        input_file (str): path to the input csv file containing the SMILES strings.
+        max_conformers (int, optional): maximum number of conformers to generate for each SMILES.
+        threshold (float, optional): RMSD threshold for considering conformers as duplicates. Defaults to 0.3
+        hardware_settings (dict, optional): Shared hardware configuration.
+
+    Returns:
+        output_file: path to the output sdf file containing the embedded conformers.
+    """
+
+    input_file_type = ".csv"
+    output_file_type = ".sdf"
+
+    check_input(input_file, input_file_type)
+    output_file = make_output_name(input_file, "embedded", output_file_type)
+    print("\033[33m" + "Embedding conformers...", flush=True)
+    print("\033[39m")  # Reset to default color
+    hs = _resolve_hardware_settings(hardware_settings)
+    # Writing to output path
+    with Chem.SDWriter(output_file) as writer:
+        names, smiles = read_csv(input_file)
+        for name, smile in zip(names, smiles):
+            # pass unified cpu_workers to embedding
+            mol = embedding.embed_conformer(
+                smile, max_conformers, hs["cpu_workers"], threshold
+            )
+
+            if mol is None or mol.GetNumConformers() == 0:
+                print(f"No conformers generated for {name}", flush=True)
+                continue
+            for i in range(mol.GetNumConformers()):
+
+                positions = mol.GetConformer(i).GetPositions()
+                # atoms clash if min distance is smaller than 0.9 Angstrom
+                if embedding.min_pairwise_distance(positions) <= 0.9:
+                    AllChem.MMFFOptimizeMolecule(mol, confId=i)
+
+                positions = mol.GetConformer(i).GetPositions()
+                if embedding.min_pairwise_distance(positions) > 0.9:
+                    conf_id = name.strip() + f"_{i}"
+                    mol.SetProp("ID", conf_id)
+                    mol.SetProp("_Name", name)
+                    writer.write(mol, confId=i)
+
+    print("\033[32m" + "Finished embedding conformers.", flush=True)
+    print("\033[39m")  # Reset to default color
+
+    return output_file
+
+
+def optimize_conformers(
+    input_file: str,
+    use_gpu: Optional[bool] = False,
+    gpu_idx: Optional[int] = 0,
+    batchsize_atoms: Optional[int] = 2048,
+    optimizing_engine: Optional[str] = "AIMNET-lite",
+    patience: Optional[int] = 1000,
+    opt_steps: Optional[int] = 5000,
+    convergence_threshold: Optional[float] = 0.003,
+    opttol: Optional[float] = None,
+    ignore_rdkit_errors: Optional[bool] = False,
+) -> str:
+    r"""
+    Takes in a sdf file with conformers and optimizes the geometry of each conformer into an output sdf file.
+    Arguments:
+        input_file (str): path to the input sdf file containing conformers.
+
+        ## Hardware Settings
+        capacity (int, optional): number of molecules to process per 1GB memory. Defaults to 8192.
+        use_gpu (bool, optional): Whether to use GPU when available. Defaults to True.
+        gpu_idx (int, optional): GPU index to use. Only applies when use_gpu=True. Defaults to 0.
+        batchsize_atoms (int, optional): Number of atoms per optimization batch per 1GB. Defaults to 2048.
+
+        ## Optimization Parameters
+        optimizing_engine (str, optional): Geometry optimization engine.
+                                        Choose from 'ANI2x', 'ANI2xt', 'AIMNET' or path to custom NNP. Defaults to "AIMNET".
+        patience (int, optional): Maximum consecutive steps without force decrease before termination. Defaults to 1000.
+        opt_steps (int, optional): Maximum optimization steps per structure. Defaults to 5000.
+        convergence_threshold (float, optional): Maximum force threshold for convergence. Defaults to 0.003.
+        ignore_rdkit_errors (bool, optional): Whether to ignore RDKit errors. Defaults to False.
+
+    Returns:
+        output_file: path to the output sdf file containing the optimized conformers.
+    """
+
+    io_file_type = ".sdf"
+    # Checks input file, device, and model
+    check_input(input_file, io_file_type)
+    device = check_device(use_gpu, gpu_idx)
+    check_model(optimizing_engine, input_file)
+    print("\033[33m" + "Optimizing Conformers...", flush=True)
+    print("\033[39m")  # Reset to default color
+
+    if int(opt_steps) < 10:
+        sys.exit(
+            f"Number of optimization steps cannot be smaller than 10, but received {opt_steps}"
+        )
+
+    output_file = make_output_name(input_file, "opt", io_file_type)
+
+    start = time.time()
+
+    # Assign device
+
+    opt_config = {
+        "opt_steps": opt_steps,
+        "opttol": convergence_threshold,
+        "patience": patience,
+        "batchsize_atoms": batchsize_atoms,
+    }
+
+    optimizer = optimizing(
+        in_f=input_file,
+        out_f=output_file,
+        name=optimizing_engine,
+        device=device,
+        config=opt_config,
+        ignore_rdkit_errors=ignore_rdkit_errors,
+    )
+    optimizer.run()
+
+    end = time.time()
+    print("\033[32m" + "Finished optimizing conformers.", flush=True)
+    print("\033[39m")  # Reset to default color
+    _print_timing(start, end)
+
+    return output_file
+
+
+def rank_conformers(
+    input_file: str,
+    k: Optional[int] = None,
+    window: Optional[bool] = None,
+    threshold: Optional[float] = 0.3,
+    hardware_settings: Optional[Dict[str, Any]] = None,
+) -> str:
+    r"""
+    Takes in a sdf file with conformers and ranks the conformers based on their energy into an output sdf file.
+    Args:
+        input_file (str): path to the input sdf file containing conformers.
+        k (int, optional): Number of conformers for each molecule. Defaults to None.
+        window (bool, optional): Whether to output structures with energies within x kcal/mol from the lowest energy conformer. Defaults to None.
+        threshold (float, optional): RMSD threshold for considering conformers as duplicates. Defaults to 0.3.
+        hardware_settings (dict, optional): Shared hardware configuration.
+
+    Returns:
+        output_file: path to the output sdf file containing the ranked conformers.
+    """
+
+    io_file_type = ".sdf"
+
+    check_input(input_file, io_file_type)
+    print("\033[33m" + "Ranking Conformers...", flush=True)
+    print("\033[39m")  # Reset to default color
+
+    if k is None and window is None:
+        sys.exit("Either k or window must be provided for ranking conformers. ")
+
+    # Output path
+    output_file = make_output_name(input_file, "ranked", io_file_type)
+
+    hs = _resolve_hardware_settings(hardware_settings)
+
+    rank_engine = ranking(
+        input_path=input_file,
+        out_path=output_file,
+        threshold=threshold,
+        k=k,
+        window=window,
+    )
+    # unified dispatch via cpu_workers (no n_workers anymore)
+    if hasattr(rank_engine, "run_wrapper"):
+        output_file = rank_engine.run_wrapper(hs["cpu_workers"])
+    else:
+        # if run_wrapper not present on an older branch, prefer parallel only when cpu_workers > 1
+        output_file = (
+            rank_engine.run_parallel(n_workers=hs["cpu_workers"])
+            if hs["cpu_workers"] > 1
+            else rank_engine.run()
+        )
+
+    print("\033[32m" + "Finished ranking conformers.", flush=True)
+    print("\033[39m")  # Reset to default color
+    return output_file
+
+
+def calculate_thermo(
+    input_file: str,
+    model_name: str = "AIMNET-lite",
+    mol_info_func: Optional[Callable] = None,
+    use_gpu: Optional[bool] = True,
+    gpu_idx: int = 0,
+    opt_tol: float = 0.0002,
+    opt_steps: int = 5000,
+    ignore_rdkit_errors: Optional[bool] = False,
+) -> str:
+    r"""
+    Takes in a sdf file with conformers and calculates the thermochemical properties of each conformer into an output sdf file.
+    Args:
+        input_file (str): path to the input sdf file.
+
+        ## Hardware Settings
+        use_gpu (bool, optional): Whether to use GPU when available. Defaults to True.
+        gpu_idx (int, optional): GPU index to use. Only applies when use_gpu=True. Defaults to 0.
+
+        ## Thermal Calculation Parameters
+        model_name (str, optional): name of the forcefield to use. Defaults to "AIMNET".
+        mol_into_function (Callable, optional): function to convert the molecule into a format that can be used by the forcefield. Defaults to None.
+        opt_tol (float, optional): Convergence_threshold for geometry optimization. Defaults to 0.0002.
+        opt_steps (int, optional): Maximum optimization steps per structure. Defaults to 5000.
+        ignore_rdkit_errors (bool, optional): Whether to ignore RDKit errors. Defaults to False.
+
+    Returns:
+        output_file: path to the output csv file containing the calculated thermochemical properties.
+    """
+
+    io_file_type = ".sdf"
+
+    check_input(input_file, io_file_type)
+    check_device(use_gpu, gpu_idx)
+    check_model(model_name, input_file)
+    print("\033[33m" + "Thermo Calculations...", flush=True)
+    print("\033[39m")  # Reset to default color
+
+    # Output path
+    output_file = make_output_name(input_file, "thermo", io_file_type)
+    output_file = thermo.calc_thermo(
+        input_file=input_file,
+        model_name=model_name,
+        output_file=output_file,
+        mol_info_func=mol_info_func,
+        use_gpu=use_gpu,
+        gpu_idx=gpu_idx,
+        opt_tol=opt_tol,
+        opt_steps=opt_steps,
+        ignore_rdkit_errors=ignore_rdkit_errors,
+    )
+    print("\033[32m" + "Finished thermo calculations.", flush=True)
+    print("\033[39m")  # Reset to default color
+    return output_file
